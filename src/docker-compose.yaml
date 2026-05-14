@@ -1,0 +1,62 @@
+services:
+  client_0:
+    build:
+      context: ./
+      dockerfile: client/Dockerfile
+    container_name: client_0
+    depends_on:
+    - count_0
+    environment:
+    - INPUT_FILE=/datasets/input_0.csv
+    - OUTPUT_FILE=/output/output_0.csv
+    - PYTHONUNBUFFERED=1
+    - SERVER_HOST=gateway
+    - SERVER_PORT=5678
+    volumes:
+    - ../datasets:/datasets
+    - ../output:/output
+  gateway:
+    build:
+      context: ./
+      dockerfile: gateway/Dockerfile
+    container_name: gateway
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+    - INPUT_QUEUE=results_queue
+    - MOM_HOST=rabbitmq
+    - OUTPUT_QUEUE=input_queue
+    - PYTHONUNBUFFERED=1
+    - SERVER_HOST=gateway
+    - SERVER_PORT=5678
+  rabbitmq:
+    build:
+      context: ./rabbitmq
+      dockerfile: Dockerfile
+    container_name: rabbitmq
+    environment:
+    - RABBITMQ_LOG_LEVELS=error
+    healthcheck:
+      interval: 5s
+      retries: 10
+      start_period: 50s
+      test: rabbitmq-diagnostics check_port_connectivity
+      timeout: 3s
+    ports:
+    - 5672:5672
+    - 15672:15672
+  count_0:
+    build:
+      context: ./
+      dockerfile: count/Dockerfile
+    container_name: count_0
+    depends_on:
+    - gateway
+    environment:
+    - ID=0
+    - INPUT_QUEUE=input_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - COUNT_AMOUNT=1
+    - COUNT_PREFIX=count
