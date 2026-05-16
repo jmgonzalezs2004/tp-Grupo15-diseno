@@ -88,22 +88,34 @@ def _serialize_tran_record(timestamp, from_bank, from_account, to_bank, to_accou
         ]
     )
 
+def _serialize_count_result(count):
+    return b"".join(
+        [
+            external_serializer.serialize_uint32(count)
+        ]
+    )
 
-def _send_fruit_record(socket: socket, timestamp, from_bank, from_account, to_bank, to_account, currency, format, amount):
+
+def _send_tran_record(socket: socket, timestamp, from_bank, from_account, to_bank, to_account, currency, format, amount):
     msg = external_serializer.serialize_uint32(MsgType.TRAN_RECORD)
     msg += _serialize_tran_record(timestamp, from_bank, from_account, to_bank, to_account, currency, format, amount)
     socket.sendall(msg)
 
+def _send_count_result(socket: socket, count):
+    msg = external_serializer.serialize_uint32(MsgType.RESULT_COUNT)
+    msg += _serialize_count_result(count)
+    socket.sendall(msg)
+
 def _send_ack(socket: socket):
     socket.sendall(external_serializer.serialize_uint32(MsgType.ACK))
-
 
 def _send_end_of_records(socket: socket):
     socket.sendall(external_serializer.serialize_uint32(MsgType.END_OF_RECODS))
 
 
 SEND_MSG_HANDLERS = {
-    MsgType.TRAN_RECORD: _send_fruit_record,
+    MsgType.TRAN_RECORD: _send_tran_record,
+    MsgType.RESULT_COUNT: _send_count_result,
     MsgType.ACK: _send_ack,
     MsgType.END_OF_RECODS: _send_end_of_records,
 }
@@ -112,3 +124,8 @@ SEND_MSG_HANDLERS = {
 def send_msg(socket, msg_type, *args):
     msg_handler = SEND_MSG_HANDLERS[msg_type]
     msg_handler(socket, *args)
+
+def forward_msg(socket: socket, msg_type, raw_data):
+    msg = external_serializer.serialize_uint32(msg_type)
+    msg += raw_data
+    socket.sendall(msg)
