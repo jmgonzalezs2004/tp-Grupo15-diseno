@@ -3,6 +3,7 @@ import logging
 import csv
 import socket
 import signal
+import time
 
 from common import protocol
 
@@ -38,11 +39,12 @@ class Client:
         logging.info("Sending transactions records")
         with open(input_file, newline="\n") as csvfile:
             csv_reader = csv.reader(csvfile, delimiter=",", quotechar='"')
+            next(csv_reader, None) # Ignore header
             for row in csv_reader:
-                [timestamp, from_bank, to_bank, _, _, amount, currency, format, _] = row
+                [timestamp, from_bank, from_account, to_bank, to_account, _, _, amount, currency, format, _] = row
                 protocol.external.send_msg(
                     self.server_socket, protocol.external.MsgType.TRAN_RECORD,
-                    timestamp, from_bank, to_bank, amount, currency, format
+                    timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format
                 )
                 protocol.external.recv_msg(self.server_socket)
 
@@ -53,17 +55,17 @@ class Client:
 
     def recv_results(self, output_file):
         logging.info("Receiving count")
-        count_message = protocol.external.recv_msg(self.server_socket)
+        msg_type, count = protocol.external.recv_msg(self.server_socket)
         protocol.external.send_msg(
             self.server_socket, protocol.external.MsgType.ACK
         )
 
-        if count_message[0] != protocol.external.MsgType.RESULT_COUNT:
-            raise TypeError("Expected a RESULT_COUNT message")
+        if msg_type != protocol.external.MsgType.COUNT_RESULT:
+            raise TypeError("Expected a COUNT_RESULT message")
 
         with open(output_file, "w") as csvfile:
             csv_writer = csv.writer(csvfile, delimiter=",", quotechar='"')
-            for count_item in count_message[1]:
+            for count_item in [(count,)]:
                 csv_writer.writerow(count_item)
 
 
@@ -71,6 +73,9 @@ def main() -> int:
     logging.basicConfig(level=logging.INFO)
     client = Client()
 
+    # client start too fast, before gateway is ready
+    # This will be not needed when we implement the full instances tree
+    time.sleep(1)
     try:
         client.connect(SERVER_HOST, SERVER_PORT)
         client.send_tran_records(INPUT_FILE)
@@ -80,7 +85,7 @@ def main() -> int:
             logging.error("The connection with the server was lost")
             return 1
     except Exception as e:
-        logging.error(e)
+        logging.exception(e)
         return 2
     finally:
         if not client.closed:

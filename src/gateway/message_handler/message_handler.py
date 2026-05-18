@@ -7,13 +7,13 @@ class MessageHandler:
         self.client_id = client_id
     
     def serialize_data_message(self, data):
-        [timestamp, from_bank, from_account, to_bank, to_account, currency, format, amount] = data
+        [timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format] = data
         transaction = Transaction(timestamp, from_bank, from_account, to_bank, to_account, currency, format, amount)
         message = MsgEnvelope(self.client_id, MsgType.TRAN_RECORD, transaction.serialize())
         return message.serialize()
 
     def serialize_eof_message(self, data):
-        message = MsgEnvelope(self.client_id, MsgType.END_OF_RECODS, [])
+        message = MsgEnvelope(self.client_id, MsgType.END_OF_RECODS, b"")
         return message.serialize()
     
     def deserialize_result_message(self, raw_message):

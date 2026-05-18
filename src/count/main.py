@@ -1,4 +1,3 @@
-import bisect
 import os
 import logging
 import signal
@@ -11,11 +10,6 @@ from common.protocol.transaction import Transaction
 MOM_HOST = os.environ["MOM_HOST"]
 INPUT_QUEUE = os.environ["INPUT_QUEUE"]
 OUTPUT_QUEUE = os.environ["OUTPUT_QUEUE"]
-SUM_AMOUNT = int(os.environ["SUM_AMOUNT"])
-SUM_PREFIX = os.environ["SUM_PREFIX"]
-AGGREGATION_AMOUNT = int(os.environ["AGGREGATION_AMOUNT"])
-AGGREGATION_PREFIX = os.environ["AGGREGATION_PREFIX"]
-TOP_SIZE = int(os.environ["TOP_SIZE"])
 
 
 class JoinFilter:
@@ -30,14 +24,14 @@ class JoinFilter:
         self.count_by_client: dict[str, int] = {}
 
     def _process_tran(self, client_id, transaction: Transaction):
-        logging.debug(f"Received transaction for {client_id}")
+        logging.info(f"Received transaction for client {client_id}")
         if not client_id in self.count_by_client:
             self.count_by_client[client_id] = 0
         self.count_by_client[client_id] += 1
     
     def _process_eof(self, client_id):
-        logging.debug(f"Received EOF for {client_id}")
-        logging.info(f"Sending count result for {client_id}")
+        logging.info(f"Received EOF for client {client_id}")
+        logging.info(f"Sending count result for client {client_id}")
         count = self.count_by_client.get(client_id, 0)
         raw_data = external_serializer.serialize_uint32(count)
         out_count_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.COUNT_RESULT, raw_data)

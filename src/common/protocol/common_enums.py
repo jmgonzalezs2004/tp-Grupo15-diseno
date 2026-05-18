@@ -1,6 +1,6 @@
-from enum import Enum
+from enum import IntEnum
 
-class PaymentFormat(Enum):
+class PaymentFormat(IntEnum):
     ACH = 1
     WIRE = 2
     OTHER = 64
@@ -15,7 +15,7 @@ class PaymentFormat(Enum):
         }
         return mapper.get(format.upper(), PaymentFormat.OTHER)
     
-class Currency(Enum):
+class Currency(IntEnum):
     US_DOLLAR = 1
     EURO = 2
     YUAN = 3

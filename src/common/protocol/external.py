@@ -9,7 +9,7 @@ from . import external_serializer
 
 class MsgType:
     TRAN_RECORD = 1
-    RESULT_COUNT = 10
+    COUNT_RESULT = 2
     ACK = 15
     END_OF_RECODS = 16
 
@@ -49,10 +49,13 @@ def _recv_tran_record(socket: socket):
     from_account = _recv_uint64(socket)
     to_bank = _recv_uint32(socket)
     to_account = _recv_uint64(socket)
+    amount = _recv_float(socket)
     currency = _recv_uint32(socket)
     format = _recv_uint32(socket)
-    amount = _recv_float(socket)
-    return (timestamp, from_bank, from_account, to_bank, to_account, currency, format, amount)
+    return (timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format)
+
+def _recv_result_count(socket: socket):
+    return _recv_uint32(socket)
 
 def _recv_empty(socket):
     return None
@@ -60,6 +63,7 @@ def _recv_empty(socket):
 
 RECV_MSG_HANDLERS = {
     MsgType.TRAN_RECORD: _recv_tran_record,
+    MsgType.COUNT_RESULT: _recv_result_count,
     MsgType.ACK: _recv_empty,
     MsgType.END_OF_RECODS: _recv_empty,
 }
@@ -71,7 +75,7 @@ def recv_msg(socket: socket):
 
 
 # Parameters come with the same format as csv datasets
-def _serialize_tran_record(timestamp, from_bank, from_account, to_bank, to_account, currency, format, amount):
+def _serialize_tran_record(timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format):
     dt = datetime.strptime(timestamp, "%Y/%m/%d %H:%M")
     dt = dt.replace(tzinfo=timezone.utc)
     timestamp = int(dt.timestamp())
@@ -82,9 +86,9 @@ def _serialize_tran_record(timestamp, from_bank, from_account, to_bank, to_accou
             external_serializer.serialize_uint64(int(from_account, 16)),
             external_serializer.serialize_uint32(int(to_bank)),
             external_serializer.serialize_uint64(int(to_account, 16)),
-            external_serializer.serialize_uint32(Currency.from_str(currency)),
-            external_serializer.serialize_uint32(PaymentFormat.from_str(format)),
-            external_serializer.serialize_float(float(amount))
+            external_serializer.serialize_float(float(amount)),
+            external_serializer.serialize_uint32(Currency.from_str(currency).value),
+            external_serializer.serialize_uint32(PaymentFormat.from_str(format).value)
         ]
     )
 
@@ -96,13 +100,13 @@ def _serialize_count_result(count):
     )
 
 
-def _send_tran_record(socket: socket, timestamp, from_bank, from_account, to_bank, to_account, currency, format, amount):
+def _send_tran_record(socket: socket, timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format):
     msg = external_serializer.serialize_uint32(MsgType.TRAN_RECORD)
-    msg += _serialize_tran_record(timestamp, from_bank, from_account, to_bank, to_account, currency, format, amount)
+    msg += _serialize_tran_record(timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format)
     socket.sendall(msg)
 
 def _send_count_result(socket: socket, count):
-    msg = external_serializer.serialize_uint32(MsgType.RESULT_COUNT)
+    msg = external_serializer.serialize_uint32(MsgType.COUNT_RESULT)
     msg += _serialize_count_result(count)
     socket.sendall(msg)
 
@@ -115,7 +119,7 @@ def _send_end_of_records(socket: socket):
 
 SEND_MSG_HANDLERS = {
     MsgType.TRAN_RECORD: _send_tran_record,
-    MsgType.RESULT_COUNT: _send_count_result,
+    MsgType.COUNT_RESULT: _send_count_result,
     MsgType.ACK: _send_ack,
     MsgType.END_OF_RECODS: _send_end_of_records,
 }

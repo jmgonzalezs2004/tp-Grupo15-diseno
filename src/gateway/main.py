@@ -3,7 +3,7 @@ import logging
 import socket
 import signal
 import multiprocessing
-from gateway.message_handler.client_id_generator import ClientIdGenerator
+from message_handler.client_id_generator import ClientIdGenerator
 import message_handler
 from common import middleware, protocol
 
@@ -39,7 +39,7 @@ def handle_client_request(client_socket: socket.socket, message_handler: message
     except socket.error:
         logging.error("The connection with the server was lost")
     except Exception as e:
-        logging.error(e)
+        logging.exception(e)
     finally:
         output_queue.close()
 
@@ -73,7 +73,7 @@ def handle_client_response(client_list: list[list[message_handler.MessageHandler
             client_list.pop(client_index)
             ack()
         except Exception as e:
-            logging.error(e)
+            logging.exception(e)
             nack()
             input_queue.stop_consuming()
 
