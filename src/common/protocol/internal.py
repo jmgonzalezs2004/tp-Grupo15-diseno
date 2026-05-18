@@ -3,11 +3,11 @@ from common.protocol.memory_reader import MemoryReader
 
 class MsgType:
     TRAN_RECORD = 1
-    ACK = 15
+    COUNT_RESULT = 2
     END_OF_RECODS = 16
 
 class MsgEnvelope:
-    def __init__(self, client_id: str, msg_type: MsgType, raw_data):
+    def __init__(self, client_id: str, msg_type: MsgType, raw_data: bytes):
         self.client_id = client_id
         self.msg_type = msg_type
         self.raw_data = raw_data
