@@ -5,7 +5,7 @@ services:
       dockerfile: client/Dockerfile
     container_name: client_0
     depends_on:
-    - count_0
+    - filter_0
     environment:
     - INPUT_FILE=/datasets/input_0.csv
     - OUTPUT_FILE=/output/output_0.csv
@@ -55,9 +55,26 @@ services:
     - gateway
     environment:
     - ID=0
-    - INPUT_QUEUE=input_queue
+    - INPUT_QUEUE=count_queue
     - OUTPUT_QUEUE=results_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
     - COUNT_AMOUNT=1
     - COUNT_PREFIX=count
+  filter_0:
+    build:
+      context: ./
+      dockerfile: filter/Dockerfile
+    container_name: filter_0
+    depends_on:
+    - count_0
+    environment:
+    - AGGREGATION_AMOUNT=1
+    - AGGREGATION_PREFIX=aggregation
+    - ID=0
+    - INPUT_QUEUE=input_queue
+    - OUTPUT_QUEUE=count_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - FILTER_AMOUNT=1
+    - FILTER_PREFIX=filter
