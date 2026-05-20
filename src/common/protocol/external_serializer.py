@@ -1,5 +1,7 @@
 import struct
 
+from common.protocol.memory_reader import MemoryReader
+
 _BIG_ENDIAN = '>'
 
 FLOAT_SIZE = 4
@@ -30,6 +32,17 @@ def serialize_float(u: float):
 
 def deserialize_float(b):
     return struct.unpack(_BIG_ENDIAN + 'f', b)[0]
+
+
+def serialize_list(l: list, item_serializer):
+    return b"".join(
+        [serialize_uint32(len(l))] + [item_serializer(item) for item in l]
+    )
+
+def deserialize_list(b, item_deserializer):
+    reader = MemoryReader(b)
+    length = reader.read_uint32()
+    return [item_deserializer(reader) for i in range(length)]
 
 
 def deserialize_string(b):

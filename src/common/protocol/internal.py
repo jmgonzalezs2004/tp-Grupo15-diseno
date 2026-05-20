@@ -4,6 +4,8 @@ from common.protocol.memory_reader import MemoryReader
 class MsgType:
     TRAN_RECORD = 1
     COUNT_RESULT = 2
+    Q2_PARTIAL_MAX = 3
+    Q2_RESULT = 4
     END_OF_RECODS = 16
 
 class MsgEnvelope:

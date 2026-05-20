@@ -8,7 +8,7 @@ services:
     - filter_0
     environment:
     - INPUT_FILE=/datasets/input_0.csv
-    - OUTPUT_FILE=/output/output_0.csv
+    - OUTPUT_FILE_PREFIX=/output/output_
     - PYTHONUNBUFFERED=1
     - SERVER_HOST=gateway
     - SERVER_PORT=5678
@@ -68,13 +68,45 @@ services:
     container_name: filter_0
     depends_on:
     - count_0
+    - max_bank_0
     environment:
     - AGGREGATION_AMOUNT=1
     - AGGREGATION_PREFIX=aggregation
     - ID=0
     - INPUT_QUEUE=input_queue
     - OUTPUT_QUEUE=count_queue
+    - Q2_OUTPUT_QUEUE=q2_input_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
     - FILTER_AMOUNT=1
     - FILTER_PREFIX=filter
+  max_bank_0:
+    build:
+      context: ./
+      dockerfile: max_bank/Dockerfile
+    container_name: max_bank_0
+    depends_on:
+    - q2_join
+    environment:
+    - ID=0
+    - INPUT_QUEUE=q2_input_queue
+    - OUTPUT_QUEUE=q2_join_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - MAX_BANK_AMOUNT=1
+    - MAX_BANK_PREFIX=filter
+  q2_join:
+    build:
+      context: ./
+      dockerfile: q2_join/Dockerfile
+    container_name: q2_join
+    depends_on:
+    - gateway
+    environment:
+    - ID=0
+    - INPUT_QUEUE=q2_join_queue
+    - OUTPUT_QUEUE=results_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - Q2_JOIN_AMOUNT=1
+    - Q2_JOIN_PREFIX=q2_join

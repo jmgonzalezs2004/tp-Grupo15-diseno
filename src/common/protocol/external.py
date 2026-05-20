@@ -3,6 +3,7 @@ from socket import socket
 from datetime import datetime, timezone
 
 from common.protocol.common_enums import Currency, PaymentFormat
+from common.protocol.memory_reader import MemoryReader
 
 from . import external_serializer
 
@@ -10,6 +11,7 @@ from . import external_serializer
 class MsgType:
     TRAN_RECORD = 1
     COUNT_RESULT = 2
+    Q2_RESULT = 4
     ACK = 15
     END_OF_RECODS = 16
 
@@ -57,6 +59,19 @@ def _recv_tran_record(socket: socket):
 def _recv_result_count(socket: socket):
     return _recv_uint32(socket)
 
+def _recv_q2_result(socket: socket):
+    def item_deserializer(reader: MemoryReader):
+        from_bank = reader.read_uint32()
+        from_account = reader.read_uint64()
+        amount = round(reader.read_float(), 2)
+        return (from_bank, from_account, amount)
+    
+    payload_len = _recv_uint32(socket)
+    return external_serializer.deserialize_list(
+        _recv_sized(socket, payload_len),
+        item_deserializer
+    )
+
 def _recv_empty(socket):
     return None
 
@@ -64,6 +79,7 @@ def _recv_empty(socket):
 RECV_MSG_HANDLERS = {
     MsgType.TRAN_RECORD: _recv_tran_record,
     MsgType.COUNT_RESULT: _recv_result_count,
+    MsgType.Q2_RESULT: _recv_q2_result,
     MsgType.ACK: _recv_empty,
     MsgType.END_OF_RECODS: _recv_empty,
 }
@@ -99,6 +115,18 @@ def _serialize_count_result(count):
         ]
     )
 
+def _serialize_q2_result(bank_max: list):
+    def item_serializer(item):
+        from_bank, from_account, amount = item
+        return b"".join(
+            [
+                external_serializer.serialize_uint32(from_bank),
+                external_serializer.serialize_uint64(from_account),
+                external_serializer.serialize_float(amount)
+            ]
+        )
+    return external_serializer.serialize_list(bank_max, item_serializer)
+
 
 def _send_tran_record(socket: socket, timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format):
     msg = external_serializer.serialize_uint32(MsgType.TRAN_RECORD)
@@ -108,6 +136,13 @@ def _send_tran_record(socket: socket, timestamp, from_bank, from_account, to_ban
 def _send_count_result(socket: socket, count):
     msg = external_serializer.serialize_uint32(MsgType.COUNT_RESULT)
     msg += _serialize_count_result(count)
+    socket.sendall(msg)
+
+def _send_q2_result(socket: socket, bank_max: list):
+    msg = external_serializer.serialize_uint32(MsgType.Q2_RESULT)
+    payload = _serialize_q2_result(bank_max)
+    msg += external_serializer.serialize_uint32(len(payload))
+    msg += payload
     socket.sendall(msg)
 
 def _send_ack(socket: socket):
@@ -120,6 +155,7 @@ def _send_end_of_records(socket: socket):
 SEND_MSG_HANDLERS = {
     MsgType.TRAN_RECORD: _send_tran_record,
     MsgType.COUNT_RESULT: _send_count_result,
+    MsgType.Q2_RESULT: _send_q2_result,
     MsgType.ACK: _send_ack,
     MsgType.END_OF_RECODS: _send_end_of_records,
 }

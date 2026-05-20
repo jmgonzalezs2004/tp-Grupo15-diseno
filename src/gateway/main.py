@@ -3,6 +3,8 @@ import logging
 import socket
 import signal
 import multiprocessing
+from common.protocol import external_serializer
+from common.protocol.internal_query import MaxBankResult
 from message_handler.client_id_generator import ClientIdGenerator
 import message_handler
 from common import middleware, protocol
@@ -59,14 +61,24 @@ def handle_client_response(client_list: list[list[message_handler.MessageHandler
                     client_index += 1
                     continue
 
-                protocol.external.forward_msg(
-                    client_socket,
-                    deserialized_message.msg_type,
-                    deserialized_message.raw_data,
-                )
+                msg_type = deserialized_message.msg_type
+                if msg_type == protocol.internal.MsgType.COUNT_RESULT:
+                    protocol.external.forward_msg(
+                        client_socket,
+                        protocol.external.MsgType.COUNT_RESULT,
+                        deserialized_message.raw_data)
+                elif msg_type == protocol.internal.MsgType.Q2_RESULT:
+                    max_banks = external_serializer.deserialize_list(
+                        deserialized_message.raw_data, MaxBankResult.deserialize)
+                    max_banks = [(item.from_bank, item.from_account, item.amount) for item in max_banks]
+                    protocol.external.send_msg(
+                        client_socket,
+                        protocol.external.MsgType.Q2_RESULT,
+                        max_banks)
+
                 protocol.external.recv_msg(client_socket)
                 break
-            client_list.pop(client_index)
+            #client_list.pop(client_index)
             ack()
         except socket.error:
             logging.error("The connection with the server was lost")

@@ -8,7 +8,7 @@ import time
 from common import protocol
 
 INPUT_FILE = os.environ["INPUT_FILE"]
-OUTPUT_FILE = os.environ["OUTPUT_FILE"]
+OUTPUT_FILE_PREFIX = os.environ["OUTPUT_FILE_PREFIX"]
 SERVER_HOST = os.environ["SERVER_HOST"]
 SERVER_PORT = int(os.environ["SERVER_PORT"])
 
@@ -53,20 +53,34 @@ class Client:
         )
         protocol.external.recv_msg(self.server_socket)
 
-    def recv_results(self, output_file):
-        logging.info("Receiving count")
-        msg_type, count = protocol.external.recv_msg(self.server_socket)
+    def process_q1_results(self, output_file_name, count):
+        logging.info("Receiving Q1 count")
+        # TODO implement real query result
+        with open(output_file_name, "w") as csvfile:
+            csv_writer = csv.writer(csvfile, delimiter=",", quotechar='"')
+            for count_item in [(count,)]:
+                csv_writer.writerow(count_item)
+    
+    def process_q2_results(self, output_file_name, max_banks):
+        logging.info("Receiving Q2 banks max results")
+        with open(output_file_name, "w") as csvfile:
+            csv_writer = csv.writer(csvfile, delimiter=",", quotechar='"')
+            for item in max_banks:
+                csv_writer.writerow(item)
+
+    def recv_results(self, output_file_prefix):
+        logging.info("Receiving result")
+        msg_type, content = protocol.external.recv_msg(self.server_socket)
         protocol.external.send_msg(
             self.server_socket, protocol.external.MsgType.ACK
         )
 
-        if msg_type != protocol.external.MsgType.COUNT_RESULT:
+        if msg_type == protocol.external.MsgType.COUNT_RESULT:
+            self.process_q1_results(output_file_prefix + "1.csv", content)
+        elif msg_type == protocol.external.MsgType.Q2_RESULT:
+            self.process_q2_results(output_file_prefix + "2.csv", content)
+        else:
             raise TypeError("Expected a COUNT_RESULT message")
-
-        with open(output_file, "w") as csvfile:
-            csv_writer = csv.writer(csvfile, delimiter=",", quotechar='"')
-            for count_item in [(count,)]:
-                csv_writer.writerow(count_item)
 
 
 def main() -> int:
@@ -79,7 +93,8 @@ def main() -> int:
     try:
         client.connect(SERVER_HOST, SERVER_PORT)
         client.send_tran_records(INPUT_FILE)
-        client.recv_results(OUTPUT_FILE)
+        client.recv_results(OUTPUT_FILE_PREFIX)
+        client.recv_results(OUTPUT_FILE_PREFIX)
     except socket.error:
         if not client.closed:
             logging.error("The connection with the server was lost")
