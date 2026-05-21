@@ -33,3 +33,28 @@ class DateCriteria:
 
     def check(self, transaction: Transaction) -> bool:
         return transaction.timestamp > self.timestamp_from and transaction.timestamp < self.timestamp_to
+
+class AndCriteria:
+    def __init__(self, lhs: FilterCriteria, rhs: FilterCriteria):
+        self.lhs = lhs
+        self.rhs = rhs
+
+    def check(self, transaction: Transaction) -> bool:
+        return self.lhs.check(transaction) and self.rhs.check(transaction)
+    
+
+def build_criteria_from_kind(filter_kind: str):
+    match filter_kind.lower():
+        case "usd":
+            return CurrencyCriteria(Currency.US_DOLLAR)
+        case "date_extended":
+            return DateCriteria("2022-09-01", "2022-09-15")
+        case "date_first":
+            return DateCriteria("2022-09-01", "2022-09-05")
+        case "date_first_and_format":
+            return AndCriteria(
+                DateCriteria("2022-09-01", "2022-09-05"),
+                PaymentFormatCriteria([PaymentFormat.WIRE, PaymentFormat.ACH])
+            )
+        case _:
+            raise ValueError(f"Filter kind {filter_kind} not supported")

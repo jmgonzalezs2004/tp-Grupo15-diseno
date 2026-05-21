@@ -5,7 +5,7 @@ services:
       dockerfile: client/Dockerfile
     container_name: client_0
     depends_on:
-    - filter_0
+    - usd_filter_0
     environment:
     - INPUT_FILE=/datasets/input_0.csv
     - OUTPUT_FILE_PREFIX=/output/output_
@@ -61,17 +61,16 @@ services:
     - PYTHONUNBUFFERED=1
     - COUNT_AMOUNT=1
     - COUNT_PREFIX=count
-  filter_0:
+  usd_filter_0:
     build:
       context: ./
       dockerfile: filter/Dockerfile
-    container_name: filter_0
+    container_name: usd_filter_0
     depends_on:
     - count_0
     - max_bank_0
     environment:
-    - AGGREGATION_AMOUNT=1
-    - AGGREGATION_PREFIX=aggregation
+    - FILTER_KIND=usd
     - ID=0
     - INPUT_QUEUE=input_queue
     - OUTPUT_QUEUE=count_queue

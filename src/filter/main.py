@@ -7,12 +7,13 @@ from common.protocol import external_serializer
 from common.protocol.common_enums import Currency
 import common.protocol.internal as protocol
 from common.protocol.transaction import Transaction
-from criteria.criteria import CurrencyCriteria
+from criteria.criteria import CurrencyCriteria, build_criteria_from_kind
 
 MOM_HOST = os.environ["MOM_HOST"]
 INPUT_QUEUE = os.environ["INPUT_QUEUE"]
 OUTPUT_QUEUE = os.environ["OUTPUT_QUEUE"]
 Q2_OUTPUT_QUEUE = os.environ["Q2_OUTPUT_QUEUE"]
+FILTER_KIND = os.environ["FILTER_KIND"]
 
 
 # Unconvenient naming convention
@@ -27,8 +28,11 @@ class FilterFilter:
         self.q2_output_queue = middleware.MessageMiddlewareQueueRabbitMQ(
             MOM_HOST, Q2_OUTPUT_QUEUE
         )
-        # Could depend on some env variable
-        self.criteria = CurrencyCriteria(Currency.US_DOLLAR)
+        try:
+            self.criteria = build_criteria_from_kind(FILTER_KIND)
+        except ValueError:
+            self.stop()
+            raise
 
     def _process_tran(self, client_id, transaction: Transaction) -> bool:
         logging.info(f"Received transaction for client {client_id}")
@@ -64,9 +68,10 @@ class FilterFilter:
         self.stop()
 
     def stop(self):
-        logging.info("Stopping JoinFilter...")
+        logging.info("Stopping FilterFilter...")
         self.input_queue.close()
         self.output_queue.close()
+        self.q2_output_queue.close()
 
 def handle_sigterm(filter_filter: FilterFilter):
     logging.info("SIGTERM received")
@@ -77,7 +82,11 @@ def handle_sigterm(filter_filter: FilterFilter):
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    filter_filter = FilterFilter()
+    try:
+        filter_filter = FilterFilter()
+    except ValueError as e:
+        logging.error(e)
+        return 1
     signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(filter_filter))
     filter_filter.start()
 
