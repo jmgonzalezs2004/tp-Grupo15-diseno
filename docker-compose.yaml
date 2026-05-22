@@ -1,7 +1,7 @@
 services:
   client_0:
     build:
-      context: ./
+      context: ./src/
       dockerfile: client/Dockerfile
     container_name: client_0
     depends_on:
@@ -17,7 +17,7 @@ services:
     - ../output:/output
   gateway:
     build:
-      context: ./
+      context: ./src/
       dockerfile: gateway/Dockerfile
     container_name: gateway
     depends_on:
@@ -32,7 +32,7 @@ services:
     - SERVER_PORT=5678
   rabbitmq:
     build:
-      context: ./rabbitmq
+      context: ./src/rabbitmq
       dockerfile: Dockerfile
     container_name: rabbitmq
     environment:
@@ -48,7 +48,7 @@ services:
     - 15672:15672
   count_0:
     build:
-      context: ./
+      context: ./src/
       dockerfile: count/Dockerfile
     container_name: count_0
     depends_on:
@@ -63,7 +63,7 @@ services:
     - COUNT_PREFIX=count
   usd_filter_0:
     build:
-      context: ./
+      context: ./src/
       dockerfile: filter/Dockerfile
     container_name: usd_filter_0
     depends_on:
@@ -81,7 +81,7 @@ services:
     - FILTER_PREFIX=filter
   max_bank_0:
     build:
-      context: ./
+      context: ./src/
       dockerfile: max_bank/Dockerfile
     container_name: max_bank_0
     depends_on:
@@ -96,7 +96,7 @@ services:
     - MAX_BANK_PREFIX=filter
   q2_join:
     build:
-      context: ./
+      context: ./src/
       dockerfile: q2_join/Dockerfile
     container_name: q2_join
     depends_on:

@@ -2,7 +2,7 @@ SHELL := /bin/bash
 PWD := $(shell pwd)
 
 up:
-	mkdir -p ../output
+	mkdir -p ./output
 	COMPOSE_HTTP_TIMEOUT=300 docker compose -f docker-compose.yaml up --build --remove-orphans --detach
 	docker compose -f docker-compose.yaml logs --follow
 .PHONY: up
