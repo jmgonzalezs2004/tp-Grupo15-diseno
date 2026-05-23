@@ -23,7 +23,7 @@ class QueryResultsVerifier:
         build_input_query_results_method = getattr(self, f"_build_input_q{query_number}_results")
         expected_query_results = build_input_query_results_method(self._input_file_name)
 
-        output_query_results = self._read_output_query_results(f"{self._output_file_prefix_name}_{query_number}.csv", query_number)
+        output_query_results = self._read_output_query_results(f"{self._output_file_prefix_name}{query_number}.csv", query_number)
 
         if len(expected_query_results) != len(output_query_results):
             raise Exception(f"Q{query_number}: Expected {len(expected_query_results)} results, but got {len(output_query_results)}")
@@ -31,6 +31,7 @@ class QueryResultsVerifier:
             raise Exception(f"Q{query_number}: Output results do not match expected results")
 
     def _read_output_query_results(self, output_file, query_number):
+        q_result_output_reader = None
         try:
             q_result_output_reader = QueryResultOutputReader(output_file, query_number)
             output_query_results = []

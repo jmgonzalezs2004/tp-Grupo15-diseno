@@ -7,6 +7,7 @@ class TransactionsReader:
     def __init__(self, input_file):
         self._csv_file = open(input_file, newline="\n")
         self._csv_reader = csv.reader(self._csv_file, delimiter=",", quotechar='"')
+        next(self._csv_reader)  # Skip header row
 
     def next_transaction(self):
         try:

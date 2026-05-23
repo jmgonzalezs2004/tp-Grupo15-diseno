@@ -6,6 +6,7 @@ class QueryResultOutputReader:
         self._query_number = query_number
         self._csv_file = open(output_file, newline="\n")
         self._csv_reader = csv.reader(self._csv_file, delimiter=",", quotechar='"')
+        next(self._csv_reader)  # Skip header row
 
     def next_output(self):
         try:
@@ -18,7 +19,7 @@ class QueryResultOutputReader:
         except StopIteration:
             return None
         except Exception as e:
-            raise Exception(f"Couldn't read output file '{self._output_file}' query result")
+            raise Exception(f"Couldn't read output file query result")
 
     def _parse_q1_output(self, row):
         [from_bank_id, from_account, to_bank_id, to_account, amount] = row
