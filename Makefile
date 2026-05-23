@@ -1,5 +1,4 @@
 SHELL := /bin/bash
-PWD := $(shell pwd)
 
 up:
 	mkdir -p ./output
@@ -15,3 +14,12 @@ down:
 logs:
 	docker compose -f docker-compose.yaml logs
 .PHONY: logs
+
+test:
+	mkdir -p output
+	rm -f ./output/*
+	COMPOSE_HTTP_TIMEOUT=300 docker compose -f docker-compose.yaml up --build --remove-orphans -d
+	python3 -m tests.main
+	docker compose -f docker-compose.yaml stop -t 5
+	docker compose -f docker-compose.yaml down
+.PHONY: test
