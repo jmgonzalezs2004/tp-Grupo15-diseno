@@ -1,7 +1,7 @@
 from enum import IntEnum
 
-from common.protocol import external_serializer
-from common.protocol.memory_reader import MemoryReader
+from common.protocol import serialization
+from common.protocol.serialization import MemoryReader
 
 class MsgType(IntEnum):
     # GENERAL
@@ -47,8 +47,8 @@ class MsgEnvelope:
     def serialize(self):
         return b"".join(
             [
-                external_serializer.serialize_uint32(self.client_id),
-                external_serializer.serialize_uint32(self.msg_type),
+                serialization.serialize_uint32(self.client_id),
+                serialization.serialize_uint32(self.msg_type),
                 self.raw_data
             ]
         )

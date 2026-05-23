@@ -3,7 +3,7 @@ import logging
 import socket
 import signal
 import multiprocessing
-from common.protocol import external_serializer
+from common.protocol import serialization
 from common.protocol.internal_query import MaxBankResult
 from message_handler.client_id_generator import ClientIdGenerator
 import message_handler
@@ -70,7 +70,7 @@ def handle_client_response(client_list: list[list[message_handler.MessageHandler
                         protocol.external.MsgType.COUNT_RESULT,
                         deserialized_message.raw_data)
                 elif msg_type == protocol.internal.MsgType.TEMP_Q2_RESULT:
-                    max_banks = external_serializer.deserialize_list(
+                    max_banks = serialization.deserialize_list(
                         deserialized_message.raw_data, MaxBankResult.deserialize)
                     max_banks = [(item.from_bank, item.from_account, item.amount) for item in max_banks]
                     protocol.external.send_msg(

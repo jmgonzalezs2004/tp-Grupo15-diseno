@@ -3,7 +3,7 @@ import logging
 import signal
 
 from common import middleware
-from common.protocol import external_serializer
+from common.protocol import serialization
 import common.protocol.internal as protocol
 from common.protocol.internal_messages import Transaction
 from common.protocol.internal_query import MaxBankResult
@@ -37,7 +37,7 @@ class MaxBankFilter:
 
         logging.info(f"Sending partial MAX for client {client_id}")
         client_max_results = list(self.max_by_bank_client.pop(client_id, {}).values())
-        raw_data = external_serializer.serialize_list(client_max_results, MaxBankResult.serialize)
+        raw_data = serialization.serialize_list(client_max_results, MaxBankResult.serialize)
         message = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_BANK_MAX, raw_data)
         self.output_queue.send(message.serialize())
 

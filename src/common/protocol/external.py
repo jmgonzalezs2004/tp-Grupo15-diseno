@@ -3,10 +3,9 @@ from enum import IntEnum
 from socket import socket
 from datetime import datetime, timezone
 
+from common.protocol import serialization
+from common.protocol.serialization import MemoryReader
 from common.protocol.common_enums import Currency, PaymentFormat
-from common.protocol.memory_reader import MemoryReader
-
-from . import external_serializer
 
 
 class MsgType(IntEnum):
@@ -32,18 +31,18 @@ def _recv_sized(socket: socket, size):
     return bytes(buf)
 
 def _recv_uint32(socket: socket):
-    return external_serializer.deserialize_uint(
-        _recv_sized(socket, external_serializer.UINT32_SIZE)
+    return serialization.deserialize_uint(
+        _recv_sized(socket, serialization.INT_SIZE)
     )
 
 def _recv_uint64(socket: socket):
-    return external_serializer.deserialize_uint(
-        _recv_sized(socket, external_serializer.UINT64_SIZE)
+    return serialization.deserialize_uint(
+        _recv_sized(socket, serialization.INT64_SIZE)
     )
 
 def _recv_float(socket: socket):
-    return external_serializer.deserialize_float(
-        _recv_sized(socket, external_serializer.FLOAT_SIZE)
+    return serialization.deserialize_float(
+        _recv_sized(socket, serialization.FLOAT_SIZE)
     )
 
 def _recv_tran_record(socket: socket):
@@ -68,7 +67,7 @@ def _recv_q2_result(socket: socket):
         return (from_bank, from_account, amount)
     
     payload_len = _recv_uint32(socket)
-    return external_serializer.deserialize_list(
+    return serialization.deserialize_list(
         _recv_sized(socket, payload_len),
         item_deserializer
     )
@@ -98,21 +97,21 @@ def _serialize_tran_record(timestamp, from_bank, from_account, to_bank, to_accou
     timestamp = int(dt.timestamp())
     return b"".join(
         [
-            external_serializer.serialize_uint32(timestamp),
-            external_serializer.serialize_uint32(int(from_bank)),
-            external_serializer.serialize_uint64(int(from_account, 16)),
-            external_serializer.serialize_uint32(int(to_bank)),
-            external_serializer.serialize_uint64(int(to_account, 16)),
-            external_serializer.serialize_float(float(amount)),
-            external_serializer.serialize_uint32(Currency.from_str(currency).value),
-            external_serializer.serialize_uint32(PaymentFormat.from_str(format).value)
+            serialization.serialize_uint32(timestamp),
+            serialization.serialize_uint32(int(from_bank)),
+            serialization.serialize_uint64(int(from_account, 16)),
+            serialization.serialize_uint32(int(to_bank)),
+            serialization.serialize_uint64(int(to_account, 16)),
+            serialization.serialize_float(float(amount)),
+            serialization.serialize_uint32(Currency.from_str(currency).value),
+            serialization.serialize_uint32(PaymentFormat.from_str(format).value)
         ]
     )
 
 def _serialize_count_result(count):
     return b"".join(
         [
-            external_serializer.serialize_uint32(count)
+            serialization.serialize_uint32(count)
         ]
     )
 
@@ -121,36 +120,36 @@ def _serialize_q2_result(bank_max: list):
         from_bank, from_account, amount = item
         return b"".join(
             [
-                external_serializer.serialize_uint32(from_bank),
-                external_serializer.serialize_uint64(from_account),
-                external_serializer.serialize_float(amount)
+                serialization.serialize_uint32(from_bank),
+                serialization.serialize_uint64(from_account),
+                serialization.serialize_float(amount)
             ]
         )
-    return external_serializer.serialize_list(bank_max, item_serializer)
+    return serialization.serialize_list(bank_max, item_serializer)
 
 
 def _send_tran_record(socket: socket, timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format):
-    msg = external_serializer.serialize_uint32(MsgType.TRAN_RECORD)
+    msg = serialization.serialize_uint32(MsgType.TRAN_RECORD)
     msg += _serialize_tran_record(timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format)
     socket.sendall(msg)
 
 def _send_count_result(socket: socket, count):
-    msg = external_serializer.serialize_uint32(MsgType.COUNT_RESULT)
+    msg = serialization.serialize_uint32(MsgType.COUNT_RESULT)
     msg += _serialize_count_result(count)
     socket.sendall(msg)
 
 def _send_q2_result(socket: socket, bank_max: list):
-    msg = external_serializer.serialize_uint32(MsgType.Q2_RESULT)
+    msg = serialization.serialize_uint32(MsgType.Q2_RESULT)
     payload = _serialize_q2_result(bank_max)
-    msg += external_serializer.serialize_uint32(len(payload))
+    msg += serialization.serialize_uint32(len(payload))
     msg += payload
     socket.sendall(msg)
 
 def _send_ack(socket: socket):
-    socket.sendall(external_serializer.serialize_uint32(MsgType.ACK))
+    socket.sendall(serialization.serialize_uint32(MsgType.ACK))
 
 def _send_end_of_records(socket: socket):
-    socket.sendall(external_serializer.serialize_uint32(MsgType.END_OF_RECODS))
+    socket.sendall(serialization.serialize_uint32(MsgType.END_OF_RECODS))
 
 
 SEND_MSG_HANDLERS = {
@@ -167,6 +166,6 @@ def send_msg(socket, msg_type, *args):
     msg_handler(socket, *args)
 
 def forward_msg(socket: socket, msg_type, raw_data):
-    msg = external_serializer.serialize_uint32(msg_type)
+    msg = serialization.serialize_uint32(msg_type)
     msg += raw_data
     socket.sendall(msg)

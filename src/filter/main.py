@@ -3,8 +3,6 @@ import logging
 import signal
 
 from common import middleware
-from common.protocol import external_serializer
-from common.protocol.common_enums import Currency
 import common.protocol.internal as protocol
 from common.protocol.internal_messages import Transaction
 from criteria.criteria import CurrencyCriteria, build_criteria_from_kind

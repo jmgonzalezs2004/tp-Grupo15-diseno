@@ -1,6 +1,6 @@
-from common.protocol import external_serializer
 from common.protocol.internal_messages import Transaction
-from common.protocol.memory_reader import MemoryReader
+from common.protocol import serialization
+from common.protocol.serialization import MemoryReader
 
 class MaxBankResult:
     def __init__(self, from_bank, from_account, amount):
@@ -17,9 +17,9 @@ class MaxBankResult:
     def serialize(self):
         return b"".join(
             [
-                external_serializer.serialize_uint32(self.from_bank),
-                external_serializer.serialize_uint64(self.from_account),
-                external_serializer.serialize_float(self.amount)
+                serialization.serialize_uint32(self.from_bank),
+                serialization.serialize_uint64(self.from_account),
+                serialization.serialize_float(self.amount)
             ]
         )
     
