@@ -1,6 +1,6 @@
 from common.protocol import external_serializer
+from common.protocol.internal_messages import Transaction
 from common.protocol.memory_reader import MemoryReader
-from common.protocol.transaction import Transaction
 
 class MaxBankResult:
     def __init__(self, from_bank, from_account, amount):
@@ -10,7 +10,7 @@ class MaxBankResult:
 
     @staticmethod
     def from_transaction(src_transaction: Transaction):
-        return MaxBankResult(src_transaction.from_bank,
+        return MaxBankResult(src_transaction.from_bank_id,
                              src_transaction.from_account,
                              src_transaction.amount)
     

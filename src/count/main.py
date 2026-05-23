@@ -5,7 +5,7 @@ import signal
 from common import middleware
 from common.protocol import external_serializer
 import common.protocol.internal as protocol
-from common.protocol.transaction import Transaction
+from common.protocol.internal_messages import Transaction
 
 MOM_HOST = os.environ["MOM_HOST"]
 INPUT_QUEUE = os.environ["INPUT_QUEUE"]
@@ -43,7 +43,7 @@ class JoinFilter:
         if envelope.msg_type == protocol.MsgType.TRAN_RECORD:
             tran = Transaction.deserialize(envelope.raw_data)
             self._process_tran(envelope.client_id, tran)
-        elif envelope.msg_type == protocol.MsgType.END_OF_RECODS:
+        elif envelope.msg_type == protocol.MsgType.END_OF_RECORDS:
             self._process_eof(envelope.client_id)
         else:
             raise RuntimeError(f"msg_type {envelope.msg_type} not supported")

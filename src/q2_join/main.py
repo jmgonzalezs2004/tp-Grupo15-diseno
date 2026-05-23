@@ -27,12 +27,12 @@ class Q2JoinFilter:
         # TODO Add bank names
         logging.info(f"Sending query 2 result for client {client_id}")
         raw_data = external_serializer.serialize_list(partial_max, MaxBankResult.serialize)
-        out_result_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_RESULT, raw_data)
+        out_result_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.TEMP_Q2_RESULT, raw_data)
         self.output_queue.send(out_result_msg.serialize())
 
     def process_messsage(self, message, ack, nack):
         envelope = protocol.MsgEnvelope.deserialize(message)
-        if envelope.msg_type == protocol.MsgType.Q2_PARTIAL_MAX:
+        if envelope.msg_type == protocol.MsgType.Q2_BANK_MAX:
             partial_max = external_serializer.deserialize_list(envelope.raw_data, MaxBankResult.deserialize)
             self._process_partial_max(envelope.client_id, partial_max)
         else:

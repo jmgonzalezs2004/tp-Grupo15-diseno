@@ -6,7 +6,7 @@ from common import middleware
 from common.protocol import external_serializer
 from common.protocol.common_enums import Currency
 import common.protocol.internal as protocol
-from common.protocol.transaction import Transaction
+from common.protocol.internal_messages import Transaction
 from criteria.criteria import CurrencyCriteria, build_criteria_from_kind
 
 MOM_HOST = os.environ["MOM_HOST"]
@@ -55,7 +55,7 @@ class FilterFilter:
             if self._process_tran(envelope.client_id, tran):
                 self.output_queue.send(message)
                 self.q2_output_queue.send(message)
-        elif envelope.msg_type == protocol.MsgType.END_OF_RECODS:
+        elif envelope.msg_type == protocol.MsgType.END_OF_RECORDS:
             self._process_eof(envelope.client_id)
             self.output_queue.send(message)
             self.q2_output_queue.send(message)

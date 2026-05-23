@@ -5,8 +5,8 @@ import signal
 from common import middleware
 from common.protocol import external_serializer
 import common.protocol.internal as protocol
+from common.protocol.internal_messages import Transaction
 from common.protocol.internal_query import MaxBankResult
-from common.protocol.transaction import Transaction
 
 MOM_HOST = os.environ["MOM_HOST"]
 INPUT_QUEUE = os.environ["INPUT_QUEUE"]
@@ -29,8 +29,8 @@ class MaxBankFilter:
             self.max_by_bank_client[client_id] = {}
         
         max_by_bank = self.max_by_bank_client[client_id]
-        if not transaction.from_bank in max_by_bank or max_by_bank[transaction.from_bank].amount < transaction.amount:
-            max_by_bank[transaction.from_bank] = MaxBankResult.from_transaction(transaction)
+        if not transaction.from_bank_id in max_by_bank or max_by_bank[transaction.from_bank_id].amount < transaction.amount:
+            max_by_bank[transaction.from_bank_id] = MaxBankResult.from_transaction(transaction)
     
     def _process_eof(self, client_id):
         logging.info(f"Received EOF for client {client_id}")
@@ -38,7 +38,7 @@ class MaxBankFilter:
         logging.info(f"Sending partial MAX for client {client_id}")
         client_max_results = list(self.max_by_bank_client.pop(client_id, {}).values())
         raw_data = external_serializer.serialize_list(client_max_results, MaxBankResult.serialize)
-        message = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_PARTIAL_MAX, raw_data)
+        message = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_BANK_MAX, raw_data)
         self.output_queue.send(message.serialize())
 
     def process_messsage(self, message, ack, nack):
@@ -46,7 +46,7 @@ class MaxBankFilter:
         if envelope.msg_type == protocol.MsgType.TRAN_RECORD:
             tran = Transaction.deserialize(envelope.raw_data)
             self._process_tran(envelope.client_id, tran)
-        elif envelope.msg_type == protocol.MsgType.END_OF_RECODS:
+        elif envelope.msg_type == protocol.MsgType.END_OF_RECORDS:
             self._process_eof(envelope.client_id)
         else:
             raise RuntimeError(f"msg_type {envelope.msg_type} not supported")

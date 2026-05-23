@@ -1,4 +1,5 @@
 from asyncio import IncompleteReadError
+from enum import IntEnum
 from socket import socket
 from datetime import datetime, timezone
 
@@ -8,7 +9,7 @@ from common.protocol.memory_reader import MemoryReader
 from . import external_serializer
 
 
-class MsgType:
+class MsgType(IntEnum):
     TRAN_RECORD = 1
     COUNT_RESULT = 2
     Q2_RESULT = 4

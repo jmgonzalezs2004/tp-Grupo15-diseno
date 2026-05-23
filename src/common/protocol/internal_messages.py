@@ -4,7 +4,7 @@ from typing import ClassVar
 from common.protocol import serialization
 from common.protocol.common_enums import Currency, PaymentFormat
 from common.protocol.internal import MsgType
-from serialization import MemoryReader
+from common.protocol.serialization import MemoryReader
 
 class SerializableMessage:
     def serialize(self) -> bytes:
