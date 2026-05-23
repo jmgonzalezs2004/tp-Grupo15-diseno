@@ -19,7 +19,7 @@ class QueryResultOutputReader:
         except StopIteration:
             return None
         except Exception as e:
-            raise Exception(f"Couldn't read output file query result")
+            raise Exception(f"Error parsing output for query {self._query_number}: {e}")
 
     def _parse_q1_output(self, row):
         [from_bank_id, from_account, to_bank_id, to_account, amount] = row

@@ -26,6 +26,8 @@ class TransactionsReader:
             )
         except StopIteration:
             return None
+        except Exception as e:
+            raise Exception(f"Error parsing transaction: {e}")
 
     def close(self):
         self._csv_file.close()
