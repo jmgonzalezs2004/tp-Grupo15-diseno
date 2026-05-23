@@ -206,7 +206,7 @@ class QueryResultsVerifier:
                     (to_bank_id, to_acc)
                 )
 
-            # Count Scatter-Gather occurrences
+            # Count distinct Scatter-Gather occurrences
             scatter_gather_count = {}
             for from_bank_id, from_acc, mid_bank_id, mid_acc in transactions:
                 if (mid_bank_id, mid_acc) not in outgoing:
@@ -216,15 +216,15 @@ class QueryResultsVerifier:
                     if (from_bank_id, from_acc) == (to_bank_id, to_acc):
                         continue
 
-                    # Increment Scatter-Gather count for (from_bank_id, from_acc, to_bank_id, to_acc)
-                    if (from_bank_id, from_acc, to_bank_id, to_acc) not in scatter_gather_count:
-                        scatter_gather_count[(from_bank_id, from_acc, to_bank_id, to_acc)] = 0
-                    scatter_gather_count[(from_bank_id, from_acc, to_bank_id, to_acc)] += 1
+                    key = (from_bank_id, from_acc, to_bank_id, to_acc)
+                    if key not in scatter_gather_count:
+                        scatter_gather_count[key] = set()
+                    scatter_gather_count[key].add((mid_bank_id, mid_acc))
 
             # Identify laundering accounts as those with more than 5 Scatter-Gather occurrences
             laundering_accounts = set()
-            for (from_bank_id, from_acc, to_bank_id, to_acc), count in scatter_gather_count.items():
-                if count > 5:
+            for (from_bank_id, from_acc, to_bank_id, to_acc), intermediates in scatter_gather_count.items():
+                if len(intermediates) > 5:
                     laundering_accounts.add((from_bank_id, from_acc))
                     laundering_accounts.add((to_bank_id, to_acc))
 
