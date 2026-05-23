@@ -22,7 +22,7 @@ class USDConverter:
             "UK Pound": "GBP",
         }
 
-    def _convert_to_usd(self, timestamp, currency, amount):
+    def convert_to_usd(self, timestamp, currency, amount):
         if currency == "US Dollar":
             return amount
         
@@ -35,19 +35,23 @@ class USDConverter:
         return amount * conversion_rate
 
     def _fetch_conversion_rate(self, date, currency):
-        currency_code = self._currency_map.get(currency)
-        if not currency_code:
+        base = self._currency_map.get(currency)
+        if not base:
             raise ValueError(f"Unsupported currency: {currency}")
         
         response = requests.get(
-            f"https://api.frankfurter.dev/v2/{date}",
+            "https://api.frankfurter.dev/v2/rates",
             params={
-                "base": currency_code,
-                "symbols": "USD",
+                "date": date,
+                "base": base,
+                "quotes": "USD",
             },
             timeout=10,
         )
 
         response.raise_for_status()
 
-        return response.json()["rates"]["USD"]
+        data = response.json()
+        if not data:
+            raise ValueError(f"No conversion rate found for {currency} on {date}")
+        return data[0]["rate"]

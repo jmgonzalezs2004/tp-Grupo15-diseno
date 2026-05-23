@@ -265,11 +265,11 @@ class QueryResultsVerifier:
                     continue
                 # Filter transactions with amount >= 1 USD
                 amount_usd = self._usd_converter.convert_to_usd(
-                    transaction_item.amount, 
+                    transaction_item.timestamp,
                     transaction_item.currency, 
-                    transaction_item.timestamp
+                    transaction_item.amount
                 )
-                if round(amount_usd, 6) >= 1:
+                if amount_usd >= 1:
                     continue
 
                 count += 1
