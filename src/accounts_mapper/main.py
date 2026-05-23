@@ -7,12 +7,11 @@ import signal
 from common import middleware
 from common.protocol.internal import MsgType, MsgEnvelope
 from common.protocol.memory_reader import MemoryReader
-from messages import Transaction2Accounts
+from common.protocol.internal_msgs.q4_msgs import Transaction2Accounts
 
 
 ID = int(os.environ["ID"])
 INPUT_QUEUE = os.environ["INPUT_QUEUE"]
-OUTPUT_QUEUE = os.environ["OUTPUT_QUEUE"]
 MOM_HOST = os.environ["MOM_HOST"]
 ACCOUNTS_MAPPER_AMOUNT = int(os.environ["ACCOUNTS_MAPPER_AMOUNT"])
 ACCOUNTS_MAPPER_PREFIX = os.environ["ACCOUNTS_MAPPER_PREFIX"]
@@ -70,11 +69,8 @@ class AccountsMapper:
         logging.info(f"Process data")
         transaction_2acc = Transaction2Accounts.deserialize(MemoryReader(data))
 
-        source_acc = (transaction_2acc.from_bank_id, transaction_2acc.from_account)
-        exchange_index_source = self._route(client_id, source_acc)
-
-        dest_acc = (transaction_2acc.to_bank_id, transaction_2acc.to_account)
-        exchange_index_dest = self._route(client_id, dest_acc)
+        exchange_index_source = self._route(client_id, transaction_2acc.source_acc)
+        exchange_index_dest = self._route(client_id, transaction_2acc.dest_acc)
 
         msg = MsgEnvelope(client_id, MsgType.Q4_TRAN_2ACC, data).serialize()
         self._sender_working_queue.put((self._data_output_exchanges[exchange_index_source], msg))

@@ -1,0 +1,132 @@
+import os
+import logging
+import queue
+import threading
+import signal
+
+from common import middleware
+from common.protocol.internal import MsgType, MsgEnvelope
+from common.protocol.memory_reader import MemoryReader
+from common.protocol.internal_msgs.q4_msgs import Transaction2Accounts, Transaction3Accounts, Account
+
+
+ID = int(os.environ["ID"])
+OUTPUT_QUEUE = os.environ["OUTPUT_QUEUE"]
+MOM_HOST = os.environ["MOM_HOST"]
+THREE_CHAIN_AMOUNT = int(os.environ["THREE_CHAIN_AMOUNT"])
+THREE_CHAIN_PREFIX = os.environ["THREE_CHAIN_PREFIX"]
+ACCOUNTS_MAPPER_AMOUNT = int(os.environ["ACCOUNTS_MAPPER_AMOUNT"])
+
+
+class ThreeChain:
+    def __init__(self):
+        self._input_exchange = middleware.MessageMiddlewareExchangeRabbitMQ(
+            MOM_HOST, THREE_CHAIN_PREFIX, [f"{THREE_CHAIN_PREFIX}_{ID}"]
+        )
+        self._output_queue = middleware.MessageMiddlewareQueueRabbitMQ(
+            MOM_HOST, OUTPUT_QUEUE
+        )
+
+        self._outgoing_tran = {} # Dict[client_id, Dict[source_acc, set(dest_acc))]]
+        self._eof_received_per_client = {} # Dict[client_id, int]
+
+        self._running = True
+
+        signal.signal(signal.SIGTERM, self.handle_sigterm)
+
+    def handle_sigterm(self, signum, frame):
+        logging.info("Received SIGTERM signal")
+        self._running = False
+        self._stop_consuming_messages()
+
+    def _stop_consuming_messages(self):
+        logging.info("Stopping consuming messages")
+        try: 
+            self._input_exchange.stop_consuming()
+        except middleware.MessageMiddlewareDisconnectedError as e:
+            logging.error(f"Error middleware disconnected: {e}")
+        except Exception as e:
+            logging.error(f"Error stopping consuming messages: {e}")
+
+    def _process_data(self, client_id, data: bytes):
+        """
+        Process incoming transaction data by deserializing it and adding it 
+        to the client's outgoing transactions set.
+        """
+
+        logging.info(f"Processing transaction data")
+        transaction_2acc = Transaction2Accounts.deserialize(MemoryReader(data))
+
+        if client_id not in self._outgoing_tran:
+            self._outgoing_tran[client_id] = {}
+        if transaction_2acc.source_acc not in self._outgoing_tran[client_id]:
+            self._outgoing_tran[client_id][transaction_2acc.source_acc] = set()
+        self._outgoing_tran[client_id][transaction_2acc.source_acc].add(transaction_2acc.dest_acc)
+
+    def _process_eof(self, client_id):
+        """
+        Handle EOF for a client. When all expected EOF messages are received,
+        generate and emit all derived 3-account transactions, then send the final
+        END_OF_RECORDS message.
+        """
+
+        logging.info(f"Received EOF")
+        if client_id not in self._eof_received_per_client:
+            self._eof_received_per_client[client_id] = 0
+        self._eof_received_per_client[client_id] += 1
+        if self._eof_received_per_client[client_id] < ACCOUNTS_MAPPER_AMOUNT:
+            logging.info(f"Waiting for more EOF messages from client")
+            return
+        
+        logging.info(f"All EOF messages received for client. Sending derived 3-account transactions")
+        for source_acc, mid_acc_set in self._outgoing_tran.get(client_id, {}).items():
+            for mid_acc in mid_acc_set:
+                if mid_acc not in self._outgoing_tran.get(client_id, {}):
+                    continue
+                for dest_acc in self._outgoing_tran[client_id][mid_acc]:
+                    transaction_3acc = Transaction3Accounts(source_acc, mid_acc, dest_acc)
+                    msg = MsgEnvelope(client_id, MsgType.Q4_TRAN_3ACC, transaction_3acc.serialize()).serialize()
+                    self._output_queue.send(msg)
+        
+        logging.info(f"Sending END_OF_RECORDS message for client")
+        self._output_queue.send(MsgEnvelope(client_id, MsgType.END_OF_RECORDS, b"").serialize())
+
+        del self._outgoing_tran[client_id]
+        del self._eof_received_per_client[client_id]
+
+    def _process_data_message(self, message, ack, nack):
+        try:
+            msg = MsgEnvelope.deserialize(message)
+            if msg.msg_type == MsgType.Q4_TRAN_2ACC:
+                self._process_data(msg.client_id, msg.raw_data)
+            elif msg.msg_type == MsgType.END_OF_RECORDS:
+                self._process_eof(msg.client_id)
+            else:
+                logging.error(f"Unknown message type: {msg.msg_type}")
+            ack()
+        except Exception as e:
+            if self._running:
+                logging.error(f"Unexpected error: {e}")
+                nack()
+                self._stop_consuming_messages()
+
+    def start(self):
+        self._input_exchange.start_consuming(self._process_data_message)
+
+        try:
+            self._input_exchange.close()
+            self._output_queue.close()
+        except middleware.MessageMiddlewareCloseError as e:
+            logging.error(f"Error closing RabbitMQ connections: {e}")
+
+        if self._running:
+            return 1
+        return 0
+
+def main():
+    logging.basicConfig(level=logging.INFO)
+    three_chain = ThreeChain()
+    return three_chain.start()
+
+if __name__ == "__main__":
+    main()
