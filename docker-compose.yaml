@@ -169,6 +169,7 @@ services:
       dockerfile: three_chain/Dockerfile
     container_name: three_chain_0
     depends_on: 
+    - q4_join
     environment:
     - ID=0
     - OUTPUT_QUEUE=three_chain_queue
@@ -183,6 +184,7 @@ services:
       dockerfile: three_chain/Dockerfile
     container_name: three_chain_1
     depends_on: 
+    - q4_join
     environment:
     - ID=1
     - OUTPUT_QUEUE=three_chain_queue
@@ -197,6 +199,7 @@ services:
       dockerfile: three_chain/Dockerfile
     container_name: three_chain_2
     depends_on: 
+    - q4_join
     environment:
     - ID=2
     - OUTPUT_QUEUE=three_chain_queue
@@ -211,6 +214,7 @@ services:
       dockerfile: q4_join/Dockerfile
     container_name: q4_join
     depends_on: 
+    - gateway
     environment:
     - INPUT_QUEUE=three_chain_queue
     - OUTPUT_QUEUE=results_queue
