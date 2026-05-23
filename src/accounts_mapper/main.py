@@ -66,17 +66,18 @@ class AccountsMapper:
         and destination accounts to the corresponding data output exchange.
         """
 
-        logging.info(f"Process data")
+        logging.info(f"Processing transaction data")
         transaction_2acc = Transaction2Accounts.deserialize(MemoryReader(data))
 
         exchange_index_source = self._route(client_id, transaction_2acc.source_acc)
         exchange_index_dest = self._route(client_id, transaction_2acc.dest_acc)
 
-        msg = MsgEnvelope(client_id, MsgType.Q4_TRAN_2ACC, data).serialize()
+        msg = MsgEnvelope(client_id, MsgType.Q4_TRAN_2ACC, transaction_2acc.serialize()).serialize()
         self._sender_working_queue.put((self._data_output_exchanges[exchange_index_source], msg))
         self._sender_working_queue.put((self._data_output_exchanges[exchange_index_dest], msg))
 
     def _process_eof(self, client_id):
+        logging.info(f"Received EOF")
         self._publish_eof(client_id)
     
     def _publish_eof(self, client_id):

@@ -1,4 +1,5 @@
 from common.protocol.memory_reader import MemoryReader
+from common.protocol import external_serializer
 
 
 class Account: 
@@ -13,6 +14,21 @@ class Account:
 
     def __hash__(self):
         return hash((self.bank_id, self.account_id))
+    
+    def serialize(self):
+        return b"".join(
+            [
+                external_serializer.serialize_uint32(self.bank_id),
+                external_serializer.serialize_uint64(self.account_id)
+            ]
+        )
+    
+    @staticmethod
+    def deserialize(reader: MemoryReader):
+        return Account(
+            reader.read_uint32(), # bank_id
+            reader.read_uint64()  # account_id
+        )
 
 
 class Transaction2Accounts:
@@ -20,26 +36,19 @@ class Transaction2Accounts:
         self.source_acc = source_acc
         self.dest_acc = dest_acc
 
-    def __eq__(self, other):
-        if not isinstance(other, Transaction2Accounts):
-            return False
-        return (self.source_acc == other.source_acc and
-                self.dest_acc == other.dest_acc)
-
-    def __hash__(self):
-        return hash((self.source_acc, self.dest_acc))
+    def serialize(self):
+        return b"".join(
+            [
+                self.source_acc.serialize(),
+                self.dest_acc.serialize()
+            ]
+        )
 
     @staticmethod
     def deserialize(reader: MemoryReader):
-        from_bank_id = reader.read_uint32()
-        from_account = reader.read_uint64()
-        to_bank_id = reader.read_uint32()
-        to_account = reader.read_uint64()
-
-        return Transaction2Accounts(
-            Account(from_bank_id, from_account),
-            Account(to_bank_id, to_account)
-        )
+        source_acc = Account.deserialize(reader)
+        dest_acc = Account.deserialize(reader)
+        return Transaction2Accounts(source_acc, dest_acc)
 
 
 class Transaction3Accounts:
@@ -48,17 +57,18 @@ class Transaction3Accounts:
         self.middle_acc = middle_acc
         self.dest_acc = dest_acc
 
+    def serialize(self):
+        return b"".join(
+            [
+                self.source_acc.serialize(),
+                self.middle_acc.serialize(),
+                self.dest_acc.serialize()
+            ]
+        )
+
     @staticmethod
     def deserialize(reader: MemoryReader):
-        from_bank_id = reader.read_uint32()
-        from_account = reader.read_uint64()
-        mid_bank_id = reader.read_uint32()
-        mid_account = reader.read_uint64()
-        to_bank_id = reader.read_uint32()
-        to_account = reader.read_uint64()
-        
-        return Transaction3Accounts(
-            Account(from_bank_id, from_account),
-            Account(mid_bank_id, mid_account),
-            Account(to_bank_id, to_account)
-        )
+        source_acc = Account.deserialize(reader)
+        middle_acc = Account.deserialize(reader)
+        dest_acc = Account.deserialize(reader)
+        return Transaction3Accounts(source_acc, middle_acc, dest_acc)
