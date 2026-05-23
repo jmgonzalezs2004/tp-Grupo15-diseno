@@ -1,6 +1,6 @@
 class Transaction:
-    def __init__(self, timestamp: int, from_bank: str, from_account: str, 
-                 to_bank: str, to_account: str, currency: str, 
+    def __init__(self, timestamp: int, from_bank: int, from_account: str, 
+                 to_bank: int, to_account: str, currency: str, 
                  payment_format: str, amount: float):
         self.timestamp = timestamp
         self.from_bank_id = from_bank

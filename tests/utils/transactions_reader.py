@@ -16,12 +16,12 @@ class TransactionsReader:
             timestamp_dt = datetime.strptime(timestamp, "%Y/%m/%d %H:%M").replace(tzinfo=UTC).timestamp()
             return Transaction(
                 int(timestamp_dt),
-                from_bank_id, 
-                from_account, 
-                to_bank_id, 
-                to_account, 
-                currency, 
-                payment_format, 
+                int(from_bank_id),
+                from_account,
+                int(to_bank_id),
+                to_account,
+                currency,
+                payment_format,
                 float(amount)
             )
         except StopIteration:
