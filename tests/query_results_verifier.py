@@ -44,6 +44,7 @@ class QueryResultsVerifier:
                 q_result_output_reader.close()
 
     def _build_input_q1_results(self, input_file):
+        tran_reader = None
         try:
             tran_reader = TransactionsReader(input_file)
             input_q1_results = []
@@ -76,6 +77,7 @@ class QueryResultsVerifier:
                 tran_reader.close()
 
     def _build_input_q2_results(self, input_file):
+        tran_reader = None
         try:
             tran_reader = TransactionsReader(input_file)
             max_tran_per_bank = {}
@@ -111,6 +113,7 @@ class QueryResultsVerifier:
                 tran_reader.close()
 
     def _build_input_q3_results(self, input_file):
+        tran_reader = None
         try:
             tran_reader = TransactionsReader(input_file)
 
@@ -169,6 +172,7 @@ class QueryResultsVerifier:
                 tran_reader.close()
 
     def _build_input_q4_results(self, input_file):
+        tran_reader = None
         try:
             tran_reader = TransactionsReader(input_file)
 
@@ -242,6 +246,7 @@ class QueryResultsVerifier:
                 tran_reader.close()
 
     def _build_input_q5_results(self, input_file):
+        tran_reader = None
         try:
             tran_reader = TransactionsReader(input_file)
             
