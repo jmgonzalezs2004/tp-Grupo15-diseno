@@ -1,6 +1,6 @@
 import csv
 from datetime import datetime, UTC
-from transaction import Transaction
+from tests.utils.transaction import Transaction
 
 
 class TransactionsReader: 

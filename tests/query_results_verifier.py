@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, UTC
-from utils.transactions_reader import TransactionsReader
-from utils.query_result_output_reader import QueryResultOutputReader
+from tests.utils.transactions_reader import TransactionsReader
+from tests.utils.query_result_output_reader import QueryResultOutputReader
 from tests.utils.usd_converter import USDConverter
 
 

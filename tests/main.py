@@ -2,7 +2,7 @@ import yaml
 import logging
 import subprocess
 
-from query_results_verifier import QueryResultsVerifier
+from tests.query_results_verifier import QueryResultsVerifier
 
 DOCKER_FILE_PATH = "./docker-compose.yaml"
 
