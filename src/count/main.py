@@ -3,9 +3,9 @@ import logging
 import signal
 
 from common import middleware
-from common.protocol import external_serializer
+from common.protocol import serialization
 import common.protocol.internal as protocol
-from common.protocol.transaction import Transaction
+from common.protocol.internal_messages import Transaction
 
 MOM_HOST = os.environ["MOM_HOST"]
 INPUT_QUEUE = os.environ["INPUT_QUEUE"]
@@ -33,7 +33,7 @@ class JoinFilter:
         logging.info(f"Received EOF for client {client_id}")
         logging.info(f"Sending count result for client {client_id}")
         count = self.count_by_client.get(client_id, 0)
-        raw_data = external_serializer.serialize_uint32(count)
+        raw_data = serialization.serialize_uint32(count)
         out_count_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.COUNT_RESULT, raw_data)
         self.output_queue.send(out_count_msg.serialize())
         del self.count_by_client[client_id]
@@ -43,7 +43,7 @@ class JoinFilter:
         if envelope.msg_type == protocol.MsgType.TRAN_RECORD:
             tran = Transaction.deserialize(envelope.raw_data)
             self._process_tran(envelope.client_id, tran)
-        elif envelope.msg_type == protocol.MsgType.END_OF_RECODS:
+        elif envelope.msg_type == protocol.MsgType.END_OF_RECORDS:
             self._process_eof(envelope.client_id)
         else:
             raise RuntimeError(f"msg_type {envelope.msg_type} not supported")

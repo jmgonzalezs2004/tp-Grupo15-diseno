@@ -13,8 +13,8 @@ services:
     - SERVER_HOST=gateway
     - SERVER_PORT=5678
     volumes:
-    - ../datasets:/datasets
-    - ../output:/output
+    - ./datasets:/datasets
+    - ./output:/output
   gateway:
     build:
       context: ./src/

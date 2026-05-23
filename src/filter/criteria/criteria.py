@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from common.protocol.common_enums import Currency, PaymentFormat
-from common.protocol.transaction import Transaction
+from common.protocol.internal_messages import Transaction
 
 
 class FilterCriteria:
@@ -13,14 +13,14 @@ class CurrencyCriteria:
         self.currency = currency
 
     def check(self, transaction: Transaction) -> bool:
-        return transaction.currency == self.currency
+        return transaction.currency_id == self.currency
 
 class PaymentFormatCriteria:
     def __init__(self, payment_formats: list[PaymentFormat]):
         self.formats = payment_formats
 
     def check(self, transaction: Transaction) -> bool:
-        return transaction.format in self.formats
+        return transaction.payment_format_id in self.formats
     
 class DateCriteria:
     def __init__(self, date_from: str, date_to: str, inclusive=True):

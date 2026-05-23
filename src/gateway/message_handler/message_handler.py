@@ -1,5 +1,5 @@
 from common.protocol.internal import MsgEnvelope, MsgType
-from common.protocol.transaction import Transaction
+from common.protocol.internal_messages import Transaction
 
 class MessageHandler:
 
@@ -9,11 +9,11 @@ class MessageHandler:
     def serialize_data_message(self, data):
         [timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format] = data
         transaction = Transaction(timestamp, from_bank, from_account, to_bank, to_account, currency, format, amount)
-        message = MsgEnvelope(self.client_id, MsgType.TRAN_RECORD, transaction.serialize())
+        message = MsgEnvelope(self.client_id, Transaction.MESSAGE_TYPE, transaction.serialize())
         return message.serialize()
 
     def serialize_eof_message(self, data):
-        message = MsgEnvelope(self.client_id, MsgType.END_OF_RECODS, b"")
+        message = MsgEnvelope(self.client_id, MsgType.END_OF_RECORDS, b"")
         return message.serialize()
     
     def deserialize_result_message(self, raw_message):
