@@ -2,7 +2,8 @@ import os
 import logging
 import signal
 
-from common import middleware
+from common.middleware.middleware import MessageMiddlewareCloseError
+from common.middleware.middleware_rabbitmq import MessageMiddlewareExchangeRabbitMQ, MessageMiddlewareQueueRabbitMQ
 from common.protocol.internal import MsgType, MsgEnvelope
 from common.protocol.memory_reader import MemoryReader
 from common.protocol.internal_msgs.q4_msgs import Transaction2Accounts, Transaction3Accounts
@@ -18,10 +19,10 @@ ACCOUNTS_MAPPER_AMOUNT = int(os.environ["ACCOUNTS_MAPPER_AMOUNT"])
 
 class ThreeChain:
     def __init__(self):
-        self._input_exchange = middleware.MessageMiddlewareExchangeRabbitMQ(
+        self._input_exchange = MessageMiddlewareExchangeRabbitMQ(
             MOM_HOST, THREE_CHAIN_PREFIX, [f"{THREE_CHAIN_PREFIX}_{ID}"]
         )
-        self._output_queue = middleware.MessageMiddlewareQueueRabbitMQ(
+        self._output_queue = MessageMiddlewareQueueRabbitMQ(
             MOM_HOST, OUTPUT_QUEUE
         )
 
@@ -35,14 +36,8 @@ class ThreeChain:
     def handle_sigterm(self, signum, frame):
         logging.info("Received SIGTERM signal")
         self._running = False
-        self._stop_consuming_messages()
-
-    def _stop_consuming_messages(self):
-        logging.info("Stopping consuming messages")
         try: 
             self._input_exchange.stop_consuming()
-        except middleware.MessageMiddlewareDisconnectedError as e:
-            logging.error(f"Error middleware disconnected: {e}")
         except Exception as e:
             logging.error(f"Error stopping consuming messages: {e}")
 
@@ -106,7 +101,7 @@ class ThreeChain:
             if self._running:
                 logging.error(f"Unexpected error: {e}")
                 nack()
-                self._stop_consuming_messages()
+                self._input_exchange.stop_consuming()
 
     def start(self):
         self._input_exchange.start_consuming(self._process_data_message)
@@ -114,7 +109,7 @@ class ThreeChain:
         try:
             self._input_exchange.close()
             self._output_queue.close()
-        except middleware.MessageMiddlewareCloseError as e:
+        except MessageMiddlewareCloseError as e:
             logging.error(f"Error closing RabbitMQ connections: {e}")
 
         if self._running:

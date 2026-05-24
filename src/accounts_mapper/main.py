@@ -4,7 +4,8 @@ import queue
 import threading
 import signal
 
-from common import middleware
+from common.middleware.middleware import MessageMiddlewareCloseError
+from common.middleware.middleware_rabbitmq import MessageMiddlewareExchangeRabbitMQ, MessageMiddlewareQueueRabbitMQ
 from common.protocol.internal import MsgType, MsgEnvelope
 from common.protocol.memory_reader import MemoryReader
 from common.protocol.internal_msgs.q4_msgs import Transaction2Accounts
@@ -21,37 +22,26 @@ THREE_CHAIN_PREFIX = os.environ["THREE_CHAIN_PREFIX"]
 
 class AccountsMapper:
     def __init__(self):
-        self._input_queue = middleware.MessageMiddlewareQueueRabbitMQ(
+        self._input_queue = MessageMiddlewareQueueRabbitMQ(
             MOM_HOST, INPUT_QUEUE
         )
-        self._control_exchange = middleware.MessageMiddlewareExchangeRabbitMQ(
+        self._control_exchange_sender = MessageMiddlewareExchangeRabbitMQ(
             MOM_HOST, ACCOUNTS_MAPPER_CONTROL_EXCHANGE, [ACCOUNTS_MAPPER_PREFIX]
         )
-        self._data_output_exchanges = [
-            middleware.MessageMiddlewareExchangeRabbitMQ(
-                MOM_HOST, THREE_CHAIN_PREFIX, [f"{THREE_CHAIN_PREFIX}_{i}"] 
-            ) for i in range(THREE_CHAIN_AMOUNT)
-        ]
-
-        self._sender_working_queue = queue.Queue()
+        self._queue_data_output_exchanges = queue.Queue()
 
         self._running = True
+        self._lock_running = threading.Lock()
+        self._lock_processing_message = threading.Lock()
 
         signal.signal(signal.SIGTERM, self.handle_sigterm)
 
     def handle_sigterm(self, signum, frame):
         logging.info("Received SIGTERM signal")
-        self._running = False
-        self._stop_consuming_messages()
-        self._sender_working_queue.put(None)
-
-    def _stop_consuming_messages(self):
-        logging.info("Stopping consuming messages")
+        with self._lock_running:
+            self._running = False
         try: 
             self._input_queue.stop_consuming()
-            self._control_exchange.stop_consuming()
-        except middleware.MessageMiddlewareDisconnectedError as e:
-            logging.error(f"Error middleware disconnected: {e}")
         except Exception as e:
             logging.error(f"Error stopping consuming messages: {e}")
 
@@ -73,11 +63,11 @@ class AccountsMapper:
         exchange_index_dest = self._route(client_id, transaction_2acc.dest_acc)
 
         msg = MsgEnvelope(client_id, MsgType.Q4_TRAN_2ACC, transaction_2acc.serialize()).serialize()
-        self._sender_working_queue.put((self._data_output_exchanges[exchange_index_source], msg))
-        self._sender_working_queue.put((self._data_output_exchanges[exchange_index_dest], msg))
+        self._queue_data_output_exchanges.put((msg, list(set([exchange_index_source, exchange_index_dest]))))
 
     def _process_eof(self, client_id):
         logging.info(f"Received EOF")
+        self._queue_data_output_exchanges.join()
         self._publish_eof(client_id)
     
     def _publish_eof(self, client_id):
@@ -88,7 +78,24 @@ class AccountsMapper:
 
         logging.info(f"Publishing EOF message")
         msg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS_NOTIF, b"").serialize()
-        self._sender_working_queue.put((self._control_exchange, msg))
+        self._control_exchange_sender.send(msg)
+
+    def _process_data_message(self, message, ack, nack):
+        with self._lock_processing_message:
+            try:
+                msg = MsgEnvelope.deserialize(message)
+                if msg.msg_type == MsgType.Q4_TRAN_2ACC:
+                    self._process_data(msg.client_id, msg.raw_data)
+                elif msg.msg_type == MsgType.END_OF_RECORDS:
+                    self._process_eof(msg.client_id)
+                else:
+                    logging.error(f"Unknown message type: {msg.msg_type}")
+                ack()
+            except Exception as e:
+                if self._running:
+                    logging.error(f"Unexpected error: {e}")
+                    nack()
+                    self._input_queue.stop_consuming()
 
     def _process_eof_notif(self, client_id):
         """
@@ -96,76 +103,83 @@ class AccountsMapper:
         """
 
         logging.info(f"Process EOF notification: broadcasting EOF message")
-        for data_output_exchange in self._data_output_exchanges:
-            msg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS, b"").serialize()
-            self._sender_working_queue.put((data_output_exchange, msg))
+        msg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS, b"").serialize()
+        self._queue_data_output_exchanges.put((msg, [i for i in range(THREE_CHAIN_AMOUNT)]))
 
-    def _process_data_message(self, message, ack, nack):
-        try:
-            msg = MsgEnvelope.deserialize(message)
-            if msg.msg_type == MsgType.Q4_TRAN_2ACC:
-                self._process_data(msg.client_id, msg.raw_data)
-            elif msg.msg_type == MsgType.END_OF_RECORDS:
-                self._process_eof(msg.client_id)
-            elif msg.msg_type == MsgType.END_OF_RECORDS_NOTIF:
-                self._process_eof_notif(msg.client_id)
-            else:
-                logging.error(f"Unknown message type: {msg.msg_type}")
-            ack()
-        except Exception as e:
-            if self._running:
-                logging.error(f"Unexpected error: {e}")
-                nack()
-                self._stop_consuming_messages()
-                self._sender_working_queue.put(None)
-
-    def _sender_loop(self):
-        """
-        Loop for sending messages asynchronously to the exchanges. Messages to be sent 
-        will be received from the sender working queue.
-        """
-
-        while True:
-            task = self._sender_working_queue.get()
+    def _process_control_message(self, message, ack, nack):
+        with self._lock_processing_message:
             try:
-                if task is None:  # EXIT
-                    break
-                exchange, message = task
-                exchange.send(message)
-            except middleware.MessageMiddlewareDisconnectedError as e:
+                msg = MsgEnvelope.deserialize(message)
+                if msg.msg_type == MsgType.END_OF_RECORDS_NOTIF:
+                    self._process_eof_notif(msg.client_id)
+                else:
+                    logging.error(f"Unknown control message type: {msg.msg_type}")
+                ack()
+            except Exception as e:
                 if self._running:
-                    logging.error(f"Connection with RabbitMQ server lost: {e}")
-            except middleware.MessageMiddlewareMessageError as e:
-                if self._running:
-                    logging.error(f"Error processing message: {e}")
+                    logging.error(f"Unexpected error in control message processing: {e}")
+                    nack()
+                    self._control_exchange_consumer.stop_consuming()
+
+    def _control_consumer_thread(self):
+        """
+        Thread for consuming messages from the control exchange.
+        """
+
+        self._control_exchange_consumer = MessageMiddlewareExchangeRabbitMQ(
+            MOM_HOST, ACCOUNTS_MAPPER_CONTROL_EXCHANGE, [ACCOUNTS_MAPPER_PREFIX]
+        )
+        self._control_exchange_consumer.start_consuming(self._process_control_message)
+        self._control_exchange_consumer.close()
+
+    def _data_output_exchange_sender_thread(self):
+        """
+        Thread for sending messages to the data output exchanges.
+        """
+
+        self._data_output_exchanges = [
+            MessageMiddlewareExchangeRabbitMQ(
+                MOM_HOST, THREE_CHAIN_PREFIX, [f"{THREE_CHAIN_PREFIX}_{i}"]
+            ) for i in range(THREE_CHAIN_AMOUNT)
+        ]
+
+        while self._running or not self._queue_data_output_exchanges.empty():
+            msg, idx_exchanges = self._queue_data_output_exchanges.get()
+            try:
+                for i in idx_exchanges:
+                    self._data_output_exchanges[i].send(msg)
+            except Exception as e:
+                logging.error(f"Error sending message to data output exchange: {e}")
+                break
             finally:
-                self._sender_working_queue.task_done()
+                self._queue_data_output_exchanges.task_done()
+        
+        for data_output_exchange in self._data_output_exchanges:
+            try:
+                data_output_exchange.close()
+            except MessageMiddlewareCloseError as e:
+                logging.error(f"Error closing RabbitMQ connections: {e}")
 
     def start(self):
-        sender_thread = threading.Thread(target=self._sender_loop)
-        sender_thread.start()
-
-        control_consumer_thread = threading.Thread(target=self._control_exchange.start_consuming, 
-                                                   args=(self._process_data_message,))
+        control_consumer_thread = threading.Thread(target=self._control_consumer_thread)
         control_consumer_thread.start()
-
+        data_output_exchange_sender_thread = threading.Thread(target=self._data_output_exchange_sender_thread)
+        data_output_exchange_sender_thread.start()
         self._input_queue.start_consuming(self._process_data_message)
 
         control_consumer_thread.join()
+        data_output_exchange_sender_thread.join()
 
         exit_code = 0
         if self._running:
-            self._running = False
+            with self._lock_running:
+                self._running = False
             exit_code = 1
-
-        sender_thread.join()
 
         try:
             self._input_queue.close()
-            self._control_exchange.close()
-            for data_output_exchange in self._data_output_exchanges:
-                data_output_exchange.close()
-        except middleware.MessageMiddlewareCloseError as e:
+            self._control_exchange_sender.close()
+        except MessageMiddlewareCloseError as e:
             logging.error(f"Error closing RabbitMQ connections: {e}")
 
         return exit_code
