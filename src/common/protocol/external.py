@@ -56,28 +56,28 @@ def _recv_string(socket: socket):
 
 def _recv_tran_record(socket: socket):
     timestamp = _recv_uint32(socket)
-    from_bank = _recv_uint32(socket)
+    from_bank_id = _recv_uint32(socket)
     from_account = _recv_uint64(socket)
-    to_bank = _recv_uint32(socket)
+    to_bank_id = _recv_uint32(socket)
     to_account = _recv_uint64(socket)
     amount = _recv_float(socket)
     currency = _recv_uint32(socket)
-    format = _recv_uint32(socket)
-    return (timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format)
+    payment_format = _recv_uint32(socket)
+    return (timestamp, from_bank_id, from_account, to_bank_id, to_account, amount, currency, payment_format)
 
 def _recv_q1_tran(socket: socket):
-    from_bank = _recv_uint32(socket)
+    from_bank_id = _recv_uint32(socket)
     from_account = _recv_uint64(socket)
-    to_bank = _recv_uint32(socket)
+    to_bank_id = _recv_uint32(socket)
     to_account = _recv_uint64(socket)
     amount = round(_recv_float(socket), 2)
-    return (from_bank, from_account, to_bank, to_account, amount)
+    return (from_bank_id, from_account, to_bank_id, to_account, amount)
 
 def _recv_q2_result(socket: socket):
-    from_bank = _recv_string(socket)
+    from_bank_name = _recv_string(socket)
     from_account = _recv_uint64(socket)
     amount = round(_recv_float(socket), 2)
-    return (from_bank, from_account, amount)
+    return (from_bank_name, from_account, amount)
 
 def _recv_q3_result_tran(socket: socket):
     from_bank_id = _recv_uint32(socket)
@@ -109,27 +109,30 @@ def recv_msg(socket: socket):
 
 
 # Parameters come with the same format as csv datasets
-def _serialize_tran_record(timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format):
+def _serialize_tran_record(timestamp, from_bank_id, from_account, 
+                           to_bank_id, to_account, amount, currency, payment_format_id):
     dt = datetime.strptime(timestamp, "%Y/%m/%d %H:%M")
     dt = dt.replace(tzinfo=timezone.utc)
     timestamp = int(dt.timestamp())
     return b"".join(
         [
             serialization.serialize_uint32(timestamp),
-            serialization.serialize_uint32(int(from_bank)),
+            serialization.serialize_uint32(int(from_bank_id)),
             serialization.serialize_uint64(int(from_account, 16)),
-            serialization.serialize_uint32(int(to_bank)),
+            serialization.serialize_uint32(int(to_bank_id)),
             serialization.serialize_uint64(int(to_account, 16)),
             serialization.serialize_float(float(amount)),
             serialization.serialize_uint32(Currency.from_str(currency).value),
-            serialization.serialize_uint32(PaymentFormat.from_str(format).value)
+            serialization.serialize_uint32(PaymentFormat.from_str(payment_format_id).value)
         ]
     )
 
 
-def _send_tran_record(socket: socket, timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format):
+def _send_tran_record(socket: socket, timestamp, from_bank_id, from_account, 
+                      to_bank_id, to_account, amount, currency, payment_format_id):
     msg = serialization.serialize_uint32(MsgType.TRAN_RECORD)
-    msg += _serialize_tran_record(timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format)
+    msg += _serialize_tran_record(timestamp, from_bank_id, from_account, to_bank_id, 
+                                  to_account, amount, currency, payment_format_id)
     socket.sendall(msg)
 
 def _send_q1_end(socket: socket):
