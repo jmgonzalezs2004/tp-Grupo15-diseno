@@ -73,28 +73,42 @@ class Client:
     
     def process_q1_tran(self, tran):
         logging.info("Receiving Q1 transaction")
+        
+        from_bank_id, from_account, to_bank_id, to_account, amount = tran
+        from_account_hex = format(from_account, "X")
+        to_account_hex = format(to_account, "X")
+        output_row = [from_bank_id, from_account_hex, to_bank_id, to_account_hex, amount]
+        
         csv_writer = self.csv_writers[0]
-        csv_writer.writerow(tran)
-                
+        csv_writer.writerow(output_row)
+
     def process_q1_end(self):
         logging.info("Receiving Q1 end")
         self.finished_queries += 1
     
     def process_q2_results(self, bank_max):
         logging.info("Receiving Q2 bank max results")
+        
+        from_bank_name, from_account, amount = bank_max
+        from_account_hex = format(from_account, "X")
+        output_row = [from_bank_name, from_account_hex, amount]
+        
         csv_writer = self.csv_writers[1]
-        csv_writer.writerow(bank_max)
-                
+        csv_writer.writerow(output_row)
+
     def process_q2_end(self):
         logging.info("Receiving Q2 end")
         self.finished_queries += 1
 
     def process_q3_result_tran(self, tran):
         logging.info("Receiving Q3 transaction result")
-        csv_writer = self.csv_writers[2]
+        
         from_bank_id, from_account, payment_format_id, amount = tran
+        from_account_hex = format(from_account, "X")
         payment_format_str = protocol.common_enums.PaymentFormat.to_str(payment_format_id)
-        output_row = [from_bank_id, from_account, payment_format_str, amount]
+        output_row = [from_bank_id, from_account_hex, payment_format_str, amount]
+        
+        csv_writer = self.csv_writers[2]
         csv_writer.writerow(output_row)
 
     def process_q3_end(self):
