@@ -120,15 +120,13 @@ class MapperAndDistributor:
 
     def _process_eof_notif(self, client_id):
         """
-        Broadcast EOF message to the data output exchanges.
+        Broadcast EOF message to the data output exchanges of the node 'payment_format_avg'
         """
 
         logging.info(f"Process EOF notification: broadcasting EOF message")
         msg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS, b"").serialize()
         self._queue_data_output_exchanges.put((msg, PAYMENT_FORMAT_AVG_PREFIX, 
                                                [i for i in range(PAYMENT_FORMAT_AVG_AMOUNT)]))
-        self._queue_data_output_exchanges.put((msg, AMOUNT_FILTER_PREFIX, 
-                                               [i for i in range(AMOUNT_FILTER_AMOUNT)]))
 
     def _process_control_message(self, message, ack, nack):
         with self._lock_processing_message:
