@@ -5,8 +5,7 @@ import signal
 from common.middleware.middleware import MessageMiddlewareCloseError
 from common.middleware.middleware_rabbitmq import MessageMiddlewareExchangeRabbitMQ, MessageMiddlewareQueueRabbitMQ
 from common.protocol.internal import MsgType, MsgEnvelope
-from common.protocol.memory_reader import MemoryReader
-from common.protocol.internal_msgs.q4_msgs import Transaction2Accounts, Transaction3Accounts
+from common.protocol.internal_messages import Q4Transaction2Acc, Q4Transaction3Acc
 
 
 ID = int(os.environ["ID"])
@@ -48,13 +47,13 @@ class ThreeChain:
         """
 
         logging.info(f"Processing transaction data")
-        transaction_2acc = Transaction2Accounts.deserialize(MemoryReader(data))
+        transaction_2acc = Q4Transaction2Acc.deserialize(data)
 
         if client_id not in self._outgoing_tran:
             self._outgoing_tran[client_id] = {}
-        if transaction_2acc.source_acc not in self._outgoing_tran[client_id]:
-            self._outgoing_tran[client_id][transaction_2acc.source_acc] = set()
-        self._outgoing_tran[client_id][transaction_2acc.source_acc].add(transaction_2acc.dest_acc)
+        if transaction_2acc.from_acc not in self._outgoing_tran[client_id]:
+            self._outgoing_tran[client_id][transaction_2acc.from_acc] = set()
+        self._outgoing_tran[client_id][transaction_2acc.from_acc].add(transaction_2acc.to_acc)
 
     def _process_eof(self, client_id):
         """
@@ -77,7 +76,7 @@ class ThreeChain:
                 if mid_acc not in self._outgoing_tran.get(client_id, {}):
                     continue
                 for dest_acc in self._outgoing_tran[client_id][mid_acc]:
-                    transaction_3acc = Transaction3Accounts(source_acc, mid_acc, dest_acc)
+                    transaction_3acc = Q4Transaction3Acc(source_acc, mid_acc, dest_acc)
                     msg = MsgEnvelope(client_id, MsgType.Q4_TRAN_3ACC, transaction_3acc.serialize()).serialize()
                     self._output_queue.send(msg)
         

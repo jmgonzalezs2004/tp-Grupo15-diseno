@@ -28,12 +28,15 @@ class MsgType(IntEnum):
     Q3_AVG = 18
     Q3_END = 19
     # QUERY 4
-    # TODO
+    Q4_TRAN_2ACC = 20
+    Q4_TRAN_3ACC = 21
+    Q4_LAUNDERING_ACC = 22
+    Q4_END = 23
     # QUERY 5
-    Q5_TRAN = 50
-    Q5_RATE_REQUEST = 51
-    Q5_RATE_RESPONSE = 52
-    Q5_COUNT = 53
+    Q5_TRAN = 24
+    Q5_RATE_REQUEST = 25
+    Q5_RATE_RESPONSE = 26
+    Q5_COUNT = 27
     # TODO REMOVE THIS
     COUNT_RESULT = 100
     TEMP_Q2_RESULT = 101

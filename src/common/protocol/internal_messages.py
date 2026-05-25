@@ -342,12 +342,97 @@ class Q3ResultTransaction(SerializableMessage):
             amount=reader.read_float(),
         )
 
-
 # ----------------
 # QUERY 4 MESSAGES
 # ----------------
 
-# TODO
+class Account: 
+    def __init__(self, bank_id: int, account_id: int):
+        self.bank_id = bank_id
+        self.account_id = account_id
+
+    def __eq__(self, other):
+        if not isinstance(other, Account):
+            return False
+        return self.bank_id == other.bank_id and self.account_id == other.account_id
+
+    def __hash__(self):
+        return hash((self.bank_id, self.account_id))
+    
+    def serialize(self):
+        return b"".join(
+            [
+                serialization.serialize_uint32(self.bank_id),
+                serialization.serialize_uint64(self.account_id)
+            ]
+        )
+    
+    @staticmethod
+    def deserialize(reader: MemoryReader):
+        return Account(
+            reader.read_uint32(), # bank_id
+            reader.read_uint64()  # account_id
+        )
+
+@dataclass
+class Q4Transaction2Acc(SerializableMessage):
+    MESSAGE_TYPE: ClassVar[int] = MsgType.Q4_TRAN_2ACC
+    from_acc: Account
+    to_acc: Account
+
+    def serialize(self) -> bytes:
+        return b"".join([
+            self.from_acc.serialize(),
+            self.to_acc.serialize(),
+        ])
+
+    @classmethod
+    def deserialize(cls, data: bytes):
+        reader = MemoryReader(data)
+        return cls(
+            from_acc=Account.deserialize(reader),
+            to_acc=Account.deserialize(reader),
+        )
+
+@dataclass
+class Q4Transaction3Acc(SerializableMessage):
+    MESSAGE_TYPE: ClassVar[int] = MsgType.Q4_TRAN_3ACC
+    from_acc: Account
+    mid_acc: Account
+    to_acc: Account
+
+    def serialize(self) -> bytes:
+        return b"".join([
+            self.from_acc.serialize(),
+            self.mid_acc.serialize(),
+            self.to_acc.serialize(),
+        ])
+
+    @classmethod
+    def deserialize(cls, data: bytes):
+        reader = MemoryReader(data)
+        return cls(
+            from_acc=Account.deserialize(reader),
+            mid_acc=Account.deserialize(reader),
+            to_acc=Account.deserialize(reader),
+        )
+
+@dataclass
+class Q4LaunderingAcc(SerializableMessage):
+    MESSAGE_TYPE: ClassVar[int] = MsgType.Q4_LAUNDERING_ACC
+    acc: Account
+
+    def serialize(self) -> bytes:
+        return b"".join([
+            self.acc.serialize(),
+        ])
+
+    @classmethod
+    def deserialize(cls, data: bytes):
+        reader = MemoryReader(data)
+        return cls(
+            acc=Account.deserialize(reader),
+        )
 
 # ----------------
 # QUERY 5 MESSAGES

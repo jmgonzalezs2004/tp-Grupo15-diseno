@@ -5,8 +5,7 @@ import signal
 from common.middleware.middleware import MessageMiddlewareCloseError
 from common.middleware.middleware_rabbitmq import MessageMiddlewareQueueRabbitMQ
 from common.protocol.internal import MsgType, MsgEnvelope
-from common.protocol.memory_reader import MemoryReader
-from common.protocol.internal_msgs.q4_msgs import Transaction3Accounts
+from common.protocol.internal_messages import Q4Transaction3Acc, Q4LaunderingAcc
 
 
 INPUT_QUEUE = os.environ["INPUT_QUEUE"]
@@ -47,14 +46,14 @@ class Q4Join:
         """
 
         logging.info(f"Processing transaction data")
-        transaction_3acc = Transaction3Accounts.deserialize(MemoryReader(data))
+        transaction_3acc = Q4Transaction3Acc.deserialize(data)
 
         if client_id not in self._scatter_gather:
             self._scatter_gather[client_id] = {}
-        key = (transaction_3acc.source_acc, transaction_3acc.dest_acc)
+        key = (transaction_3acc.from_acc, transaction_3acc.to_acc)
         if key not in self._scatter_gather[client_id]:
             self._scatter_gather[client_id][key] = set()
-        self._scatter_gather[client_id][key].add(transaction_3acc.middle_acc)
+        self._scatter_gather[client_id][key].add(transaction_3acc.mid_acc)
 
     def _process_eof(self, client_id):
         """
@@ -75,8 +74,12 @@ class Q4Join:
         logging.info(f"All EOF messages received for client. Generating results")
         for (source_acc, dest_acc), middle_accs in self._scatter_gather[client_id].items():
             if len(middle_accs) > SCATTER_GATHER_TRAN_THRESHOLD:
-                msg_laundering_source_acc = MsgEnvelope(client_id, MsgType.Q4_LAUNDERING_ACC, source_acc.serialize()).serialize()
-                msg_laundering_dest_acc = MsgEnvelope(client_id, MsgType.Q4_LAUNDERING_ACC, dest_acc.serialize()).serialize()
+                laundering_source_acc = Q4LaunderingAcc(source_acc)
+                laundering_dest_acc = Q4LaunderingAcc(dest_acc)
+                
+                msg_laundering_source_acc = MsgEnvelope(client_id, MsgType.Q4_LAUNDERING_ACC, laundering_source_acc.serialize()).serialize()
+                msg_laundering_dest_acc = MsgEnvelope(client_id, MsgType.Q4_LAUNDERING_ACC, laundering_dest_acc.serialize()).serialize()
+
                 self._output_queue.send(msg_laundering_source_acc)
                 self._output_queue.send(msg_laundering_dest_acc)
 

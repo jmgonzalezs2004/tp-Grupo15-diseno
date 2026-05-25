@@ -7,8 +7,7 @@ import signal
 from common.middleware.middleware import MessageMiddlewareCloseError
 from common.middleware.middleware_rabbitmq import MessageMiddlewareExchangeRabbitMQ, MessageMiddlewareQueueRabbitMQ
 from common.protocol.internal import MsgType, MsgEnvelope
-from common.protocol.memory_reader import MemoryReader
-from common.protocol.internal_msgs.q4_msgs import Transaction2Accounts
+from common.protocol.internal_messages import Q4Transaction2Acc
 
 
 ID = int(os.environ["ID"])
@@ -46,7 +45,7 @@ class AccountsMapper:
             logging.error(f"Error stopping consuming messages: {e}")
 
     def _route(self, client_id, account):
-        key = f"{client_id}:{account}".encode()
+        key = f"{client_id}:{account.bank_id}:{account.account_id}".encode()
         hash_int = int.from_bytes(key, byteorder='big')
         return hash_int % THREE_CHAIN_AMOUNT
 
@@ -57,10 +56,10 @@ class AccountsMapper:
         """
 
         logging.info(f"Processing transaction data")
-        transaction_2acc = Transaction2Accounts.deserialize(MemoryReader(data))
+        transaction_2acc = Q4Transaction2Acc.deserialize(data)
 
-        exchange_index_source = self._route(client_id, transaction_2acc.source_acc)
-        exchange_index_dest = self._route(client_id, transaction_2acc.dest_acc)
+        exchange_index_source = self._route(client_id, transaction_2acc.from_acc)
+        exchange_index_dest = self._route(client_id, transaction_2acc.to_acc)
 
         msg = MsgEnvelope(client_id, MsgType.Q4_TRAN_2ACC, transaction_2acc.serialize()).serialize()
         self._queue_data_output_exchanges.put((msg, list(set([exchange_index_source, exchange_index_dest]))))
