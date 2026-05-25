@@ -70,20 +70,20 @@ def _recv_q1_tran(socket: socket):
     from_account = _recv_uint64(socket)
     to_bank_id = _recv_uint32(socket)
     to_account = _recv_uint64(socket)
-    amount = round(_recv_float(socket), 2)
+    amount = _recv_float(socket)
     return (from_bank_id, from_account, to_bank_id, to_account, amount)
 
 def _recv_q2_result(socket: socket):
     from_bank_name = _recv_string(socket)
     from_account = _recv_uint64(socket)
-    amount = round(_recv_float(socket), 2)
+    amount = _recv_float(socket)
     return (from_bank_name, from_account, amount)
 
 def _recv_q3_result_tran(socket: socket):
     from_bank_id = _recv_uint32(socket)
     from_account = _recv_uint64(socket)
     payment_format_id = _recv_uint32(socket)
-    amount = round(_recv_float(socket), 2)
+    amount = _recv_float(socket)
     return (from_bank_id, from_account, payment_format_id, amount)
 
 def _recv_empty(socket):
