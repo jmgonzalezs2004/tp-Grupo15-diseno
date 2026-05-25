@@ -23,6 +23,8 @@ class Q3Join:
             MOM_HOST, OUTPUT_QUEUE
         )
 
+        self._eof_received = {} # Dict[client_id, int]
+
         self._running = True
 
         signal.signal(signal.SIGTERM, self.handle_sigterm)
