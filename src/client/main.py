@@ -15,7 +15,7 @@ SERVER_HOST = os.environ["SERVER_HOST"]
 SERVER_PORT = int(os.environ["SERVER_PORT"])
 
 # TODO increase to 5
-_QUERIES_COUNT = 2
+_QUERIES_COUNT = 3
 
 class Client:
 
@@ -56,7 +56,7 @@ class Client:
                 protocol.external.recv_msg(self.server_socket)
 
         protocol.external.send_msg(
-            self.server_socket, protocol.external.MsgType.END_OF_RECODS
+            self.server_socket, protocol.external.MsgType.END_OF_RECORDS
         )
         protocol.external.recv_msg(self.server_socket)
 
@@ -89,6 +89,18 @@ class Client:
         logging.info("Receiving Q2 end")
         self.finished_queries += 1
 
+    def process_q3_result_tran(self, tran):
+        logging.info("Receiving Q3 transaction result")
+        csv_writer = self.csv_writers[2]
+        from_bank_id, from_account, payment_format_id, amount = tran
+        payment_format_str = protocol.common_enums.PaymentFormat.to_str(payment_format_id)
+        output_row = [from_bank_id, from_account, payment_format_str, amount]
+        csv_writer.writerow(output_row)
+
+    def process_q3_end(self):
+        logging.info("Receiving Q3 end")
+        self.finished_queries += 1
+
     def recv_results(self):
         while self.finished_queries < _QUERIES_COUNT:
             logging.info("Receiving result")
@@ -105,6 +117,11 @@ class Client:
                 self.process_q2_results(content)
             elif msg_type == protocol.external.MsgType.Q2_END:
                 self.process_q2_end()
+            elif msg_type == protocol.external.MsgType.Q3_RESULT_TRAN:
+                self.process_q3_result_tran(content)
+            elif msg_type == protocol.external.MsgType.Q3_END:
+                self.process_q3_end()
+            # TODO: Complete for Q4 and Q5
             else:
                 raise TypeError(f"Message type {msg_type} not supported")
 
