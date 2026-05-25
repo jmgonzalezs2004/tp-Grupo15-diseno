@@ -71,7 +71,7 @@ class MapperAndDistributor:
             logging.info(f"Transaction is historical: sending to payment_format_avg")
             tran_preceding = Q3TransactionPreceding(transaction.payment_format_id, transaction.amount)
             msg = MsgEnvelope(client_id, MsgType.Q3_TRAN_PRECEDING, tran_preceding.serialize()).serialize()
-            exch_idx = self._route(client_id, PAYMENT_FORMAT_AVG_PREFIX, PAYMENT_FORMAT_AVG_AMOUNT)
+            exch_idx = self._route(client_id, transaction.payment_format_id, PAYMENT_FORMAT_AVG_AMOUNT)
             self._queue_data_output_exchanges.put(msg, PAYMENT_FORMAT_AVG_PREFIX, [exch_idx])
 
         subsequent_from_dt = int(datetime(2022, 9, 6, tzinfo=UTC).timestamp())
@@ -83,7 +83,7 @@ class MapperAndDistributor:
                                                       transaction.payment_format_id, 
                                                       transaction.amount)
             msg = MsgEnvelope(client_id, MsgType.Q3_TRAN_SUBSEQUENT, tran_subsequent.serialize()).serialize()
-            exch_idx = self._route(client_id, AMOUNT_FILTER_PREFIX, AMOUNT_FILTER_AMOUNT)
+            exch_idx = self._route(client_id, transaction.payment_format_id, AMOUNT_FILTER_AMOUNT)
             self._queue_data_output_exchanges.put(msg, AMOUNT_FILTER_PREFIX, [exch_idx])
 
     def _process_eof(self, client_id):
