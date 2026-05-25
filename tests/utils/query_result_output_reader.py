@@ -31,9 +31,9 @@ class QueryResultOutputReader:
         return [from_bank_name, account, float(amount)]
 
     def _parse_q3_output(self, row):
-        [from_bank_id, from_account, amount, payment_format] = row
-        return [int(from_bank_id), from_account, float(amount), payment_format]
-    
+        [from_bank_id, from_account, payment_format, amount] = row
+        return [int(from_bank_id), from_account, payment_format, float(amount)]
+
     def _parse_q4_output(self, row):
         [from_bank_id, from_account] = row
         return [int(from_bank_id), from_account]
