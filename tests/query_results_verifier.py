@@ -98,9 +98,10 @@ class QueryResultsVerifier:
             for bank_id, (account, amount) in max_tran_per_bank.items():
                 # ---- STORE QUERY 2 RESULT ----
                 input_q2_results.append([
-                    bank_id,
+                    # TODO: Here should be bank_id,
+                    "Bank " + str(bank_id),
                     account, 
-                    # TODO: Bank name
+                    # TODO: Real bank name should be here
                     amount
                 ])
 
