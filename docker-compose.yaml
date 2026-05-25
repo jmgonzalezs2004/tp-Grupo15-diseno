@@ -109,3 +109,15 @@ services:
     - PYTHONUNBUFFERED=1
     - Q2_JOIN_AMOUNT=1
     - Q2_JOIN_PREFIX=q2_join
+  q1_join:
+    build:
+      context: ./src/
+      dockerfile: q1_join/Dockerfile
+    container_name: q1_join
+    depends_on:
+    - gateway
+    environment:
+    - INPUT_QUEUE=query_queue
+    - OUTPUT_QUEUE=results_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
