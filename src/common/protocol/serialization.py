@@ -15,6 +15,9 @@ def deserialize_uint(b):
 def deserialize_float(b):
     return struct.unpack(_BIG_ENDIAN + 'f', b)[0]
 
+def buffer_to_string(b: bytes):
+    return b.decode("utf-8")
+
 class MemoryReader:
     def __init__(self, data: bytes):
         self.data = data

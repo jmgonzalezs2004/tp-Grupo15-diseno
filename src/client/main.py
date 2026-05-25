@@ -80,11 +80,13 @@ class Client:
         logging.info("Receiving Q1 end")
         self.finished_queries += 1
     
-    def process_q2_results(self, max_banks):
-        logging.info("Receiving Q2 banks max results")
+    def process_q2_results(self, bank_max):
+        logging.info("Receiving Q2 bank max results")
         csv_writer = self.csv_writers[1]
-        for item in max_banks:
-            csv_writer.writerow(item)
+        csv_writer.writerow(bank_max)
+                
+    def process_q2_end(self):
+        logging.info("Receiving Q2 end")
         self.finished_queries += 1
 
     def recv_results(self):
@@ -101,6 +103,8 @@ class Client:
                 self.process_q1_end()
             elif msg_type == protocol.external.MsgType.Q2_RESULT:
                 self.process_q2_results(content)
+            elif msg_type == protocol.external.MsgType.Q2_END:
+                self.process_q2_end()
             else:
                 raise TypeError(f"Message type {msg_type} not supported")
 

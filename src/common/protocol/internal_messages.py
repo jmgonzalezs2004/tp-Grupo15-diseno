@@ -175,10 +175,6 @@ class Q2BankMax(SerializableMessage):
     @classmethod
     def deserialize(cls, data: bytes):
         reader = MemoryReader(data)
-        return cls.deserialize_reader(reader)
-    
-    @classmethod
-    def deserialize_reader(cls, reader: MemoryReader):
         return cls(
             from_bank_id=reader.read_uint32(),
             from_account=reader.read_uint64(),
@@ -202,10 +198,6 @@ class Q2Result(SerializableMessage):
     @classmethod
     def deserialize(cls, data: bytes):
         reader = MemoryReader(data)
-        return cls.deserialize_reader(reader)
-    
-    @classmethod
-    def deserialize_reader(cls, reader: MemoryReader):
         return cls(
             from_bank_name=reader.read_string(),
             from_account=reader.read_uint64(),
