@@ -10,7 +10,8 @@ from common.protocol.common_enums import Currency, PaymentFormat
 
 class MsgType(IntEnum):
     TRAN_RECORD = 1
-    COUNT_RESULT = 2
+    Q1_TRAN = 2
+    Q1_END = 3
     Q2_RESULT = 4
     ACK = 15
     END_OF_RECODS = 16
@@ -56,8 +57,13 @@ def _recv_tran_record(socket: socket):
     format = _recv_uint32(socket)
     return (timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format)
 
-def _recv_result_count(socket: socket):
-    return _recv_uint32(socket)
+def _recv_q1_tran(socket: socket):
+    from_bank = _recv_uint32(socket)
+    from_account = _recv_uint64(socket)
+    to_bank = _recv_uint32(socket)
+    to_account = _recv_uint64(socket)
+    amount = _recv_float(socket)
+    return (from_bank, from_account, to_bank, to_account, amount)
 
 def _recv_q2_result(socket: socket):
     def item_deserializer(reader: MemoryReader):
@@ -78,7 +84,8 @@ def _recv_empty(socket):
 
 RECV_MSG_HANDLERS = {
     MsgType.TRAN_RECORD: _recv_tran_record,
-    MsgType.COUNT_RESULT: _recv_result_count,
+    MsgType.Q1_TRAN: _recv_q1_tran,
+    MsgType.Q1_END: _recv_empty,
     MsgType.Q2_RESULT: _recv_q2_result,
     MsgType.ACK: _recv_empty,
     MsgType.END_OF_RECODS: _recv_empty,
@@ -108,13 +115,6 @@ def _serialize_tran_record(timestamp, from_bank, from_account, to_bank, to_accou
         ]
     )
 
-def _serialize_count_result(count):
-    return b"".join(
-        [
-            serialization.serialize_uint32(count)
-        ]
-    )
-
 def _serialize_q2_result(bank_max: list):
     def item_serializer(item):
         from_bank, from_account, amount = item
@@ -133,10 +133,8 @@ def _send_tran_record(socket: socket, timestamp, from_bank, from_account, to_ban
     msg += _serialize_tran_record(timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format)
     socket.sendall(msg)
 
-def _send_count_result(socket: socket, count):
-    msg = serialization.serialize_uint32(MsgType.COUNT_RESULT)
-    msg += _serialize_count_result(count)
-    socket.sendall(msg)
+def _send_q1_end(socket: socket):
+    socket.sendall(serialization.serialize_uint32(MsgType.Q1_END))
 
 def _send_q2_result(socket: socket, bank_max: list):
     msg = serialization.serialize_uint32(MsgType.Q2_RESULT)
@@ -154,7 +152,7 @@ def _send_end_of_records(socket: socket):
 
 SEND_MSG_HANDLERS = {
     MsgType.TRAN_RECORD: _send_tran_record,
-    MsgType.COUNT_RESULT: _send_count_result,
+    MsgType.Q1_END: _send_q1_end,
     MsgType.Q2_RESULT: _send_q2_result,
     MsgType.ACK: _send_ack,
     MsgType.END_OF_RECODS: _send_end_of_records,

@@ -64,11 +64,15 @@ def handle_client_response(client_list: list[list[message_handler.MessageHandler
                     continue
 
                 msg_type = deserialized_message.msg_type
-                if msg_type == protocol.internal.MsgType.COUNT_RESULT:
+                if msg_type == protocol.internal.MsgType.Q1_TRAN:
                     protocol.external.forward_msg(
                         client_socket,
-                        protocol.external.MsgType.COUNT_RESULT,
+                        protocol.external.MsgType.Q1_TRAN,
                         deserialized_message.raw_data)
+                elif msg_type == protocol.internal.MsgType.Q1_END:
+                    protocol.external.send_msg(
+                        client_socket,
+                        protocol.external.MsgType.Q1_END)
                 elif msg_type == protocol.internal.MsgType.Q2_RESULT:
                     max_banks = serialization.deserialize_list(
                         deserialized_message.raw_data, Q2Result.deserialize_reader)

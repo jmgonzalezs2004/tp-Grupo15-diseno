@@ -54,7 +54,7 @@ services:
       dockerfile: distributor/Dockerfile
     container_name: distributor_0
     depends_on:
-    - count_0
+    - q1_join
     - max_bank_0
     environment:
     - ID=0
@@ -66,21 +66,22 @@ services:
     - Q5_QUEUE=q5_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-  count_0:
+
+  # QUERY 1
+  q1_join:
     build:
       context: ./src/
-      dockerfile: count/Dockerfile
-    container_name: count_0
+      dockerfile: q1_join/Dockerfile
+    container_name: q1_join
     depends_on:
     - gateway
     environment:
-    - ID=0
     - INPUT_QUEUE=q1_queue
     - OUTPUT_QUEUE=results_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - COUNT_AMOUNT=1
-    - COUNT_PREFIX=count
+
+  # QUERY 2
   max_bank_0:
     build:
       context: ./src/
@@ -111,15 +112,9 @@ services:
     - PYTHONUNBUFFERED=1
     - Q2_JOIN_AMOUNT=1
     - Q2_JOIN_PREFIX=q2_join
-  q1_join:
-    build:
-      context: ./src/
-      dockerfile: q1_join/Dockerfile
-    container_name: q1_join
-    depends_on:
-    - gateway
-    environment:
-    - INPUT_QUEUE=query_queue
-    - OUTPUT_QUEUE=results_queue
-    - MOM_HOST=rabbitmq
-    - PYTHONUNBUFFERED=1
+
+  # QUERY 3
+
+  # QUERY 4
+
+  # QUERY 5
