@@ -64,8 +64,7 @@ class FilterFilter:
         if self.q3_criteria.check(transaction):
             logging.info(f"Sending transaction to query 3 for client {client_id}")
             q_tran = Q3Transaction.from_transaction(transaction)
-            # TODO Enable
-            #self._distribute_tran(client_id, q_tran, self.q3_output_queue)
+            self._distribute_tran(client_id, q_tran, self.q3_output_queue)
         if self.q4_criteria.check(transaction):
             logging.info(f"Sending transaction to query 4 for client {client_id}")
             # TODO Implement query
@@ -83,8 +82,8 @@ class FilterFilter:
         logging.info(f"Sending EOF for client {client_id}")
         self.q1_output_queue.send(message)
         self.q2_output_queue.send(message)
+        self.q3_output_queue.send(message)
         # TODO Enable
-        #self.q3_output_queue.send(message)
         #self.q4_output_queue.send(message)
         #self.q5_output_queue.send(message)
 

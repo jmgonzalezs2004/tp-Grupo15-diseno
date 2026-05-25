@@ -31,7 +31,7 @@ def handle_client_request(client_socket: socket.socket, message_handler: message
                     client_socket, protocol.external.MsgType.ACK
                 )
 
-            if msg_type == protocol.external.MsgType.END_OF_RECODS:
+            if msg_type == protocol.external.MsgType.END_OF_RECORDS:
                 serialized_message = message_handler.serialize_eof_message(content)
                 output_queue.send(serialized_message)
                 protocol.external.send_msg(
@@ -82,6 +82,16 @@ def handle_client_response(client_list: list[list[message_handler.MessageHandler
                     protocol.external.send_msg(
                         client_socket,
                         protocol.external.MsgType.Q2_END)
+                elif msg_type == protocol.internal.MsgType.Q3_RESULT_TRAN:
+                    protocol.external.forward_msg(
+                        client_socket,
+                        protocol.external.MsgType.Q3_RESULT_TRAN,
+                        deserialized_message.raw_data)
+                elif msg_type == protocol.internal.MsgType.Q3_END:
+                    protocol.external.send_msg(
+                        client_socket,
+                        protocol.external.MsgType.Q3_END)
+                # TODO: Complete for Q4 and Q5
 
                 protocol.external.recv_msg(client_socket)
                 break

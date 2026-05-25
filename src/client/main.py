@@ -15,7 +15,7 @@ SERVER_HOST = os.environ["SERVER_HOST"]
 SERVER_PORT = int(os.environ["SERVER_PORT"])
 
 # TODO increase to 5
-_QUERIES_COUNT = 2
+_QUERIES_COUNT = 3
 
 class Client:
 
@@ -25,6 +25,13 @@ class Client:
         self.finished_queries = 0
         self.output_files: list[TextIO] = []
         self.csv_writers: list[CsvWriter] = []
+        self.output_files_headers = {
+            1: ["From Bank", "From Account", "To Bank", "To Account", "Amount"],
+            2: ["Bank Name", "Account", "Amount"],
+            3: ["Bank", "Account", "Payment Format", "Amount"],
+            4: ["Bank", "Account"],
+            5: ["Count"]
+        }
 
     def handle_sigterm(self, signum, frame):
         logging.info("Recieved SIGTERM signal")
@@ -56,15 +63,21 @@ class Client:
                 protocol.external.recv_msg(self.server_socket)
 
         protocol.external.send_msg(
-            self.server_socket, protocol.external.MsgType.END_OF_RECODS
+            self.server_socket, protocol.external.MsgType.END_OF_RECORDS
         )
         protocol.external.recv_msg(self.server_socket)
 
     def initialize_output_files(self):
+        output_dir = os.path.dirname(OUTPUT_FILE_PREFIX)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
         for i in range(_QUERIES_COUNT):
-            self.output_files.append(open(f"{OUTPUT_FILE_PREFIX}{i+1}.csv", "w"))
+            q_num = i + 1
+            self.output_files.append(open(f"{OUTPUT_FILE_PREFIX}{q_num}.csv", "w"))
             self.csv_writers.append(csv.writer(self.output_files[i], delimiter=",", quotechar='"'))
-    
+            self.csv_writers[i].writerow(self.output_files_headers[q_num])
+
     def close_output_files(self):
         for file in self.output_files:
             file.close()
@@ -73,20 +86,46 @@ class Client:
     
     def process_q1_tran(self, tran):
         logging.info("Receiving Q1 transaction")
+        
+        from_bank_id, from_account, to_bank_id, to_account, amount = tran
+        from_account_hex = format(from_account, "X")
+        to_account_hex = format(to_account, "X")
+        output_row = [from_bank_id, from_account_hex, to_bank_id, to_account_hex, amount]
+        
         csv_writer = self.csv_writers[0]
-        csv_writer.writerow(tran)
-                
+        csv_writer.writerow(output_row)
+
     def process_q1_end(self):
         logging.info("Receiving Q1 end")
         self.finished_queries += 1
     
     def process_q2_results(self, bank_max):
         logging.info("Receiving Q2 bank max results")
+        
+        from_bank_name, from_account, amount = bank_max
+        from_account_hex = format(from_account, "X")
+        output_row = [from_bank_name, from_account_hex, amount]
+        
         csv_writer = self.csv_writers[1]
-        csv_writer.writerow(bank_max)
-                
+        csv_writer.writerow(output_row)
+
     def process_q2_end(self):
         logging.info("Receiving Q2 end")
+        self.finished_queries += 1
+
+    def process_q3_result_tran(self, tran):
+        logging.info("Receiving Q3 transaction result")
+        
+        from_bank_id, from_account, payment_format_id, amount = tran
+        from_account_hex = format(from_account, "X")
+        payment_format_str = protocol.common_enums.PaymentFormat.to_str(payment_format_id)
+        output_row = [from_bank_id, from_account_hex, payment_format_str, amount]
+        
+        csv_writer = self.csv_writers[2]
+        csv_writer.writerow(output_row)
+
+    def process_q3_end(self):
+        logging.info("Receiving Q3 end")
         self.finished_queries += 1
 
     def recv_results(self):
@@ -105,6 +144,11 @@ class Client:
                 self.process_q2_results(content)
             elif msg_type == protocol.external.MsgType.Q2_END:
                 self.process_q2_end()
+            elif msg_type == protocol.external.MsgType.Q3_RESULT_TRAN:
+                self.process_q3_result_tran(content)
+            elif msg_type == protocol.external.MsgType.Q3_END:
+                self.process_q3_end()
+            # TODO: Complete for Q4 and Q5
             else:
                 raise TypeError(f"Message type {msg_type} not supported")
 

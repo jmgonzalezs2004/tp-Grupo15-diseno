@@ -15,6 +15,15 @@ class PaymentFormat(IntEnum):
         }
         return mapper.get(format.upper(), PaymentFormat.OTHER)
     
+    @staticmethod
+    def to_str(format_id: int) -> str:
+        mapper = {
+            PaymentFormat.ACH.value: "ACH",
+            PaymentFormat.WIRE.value: "Wire"
+            # ...
+        }
+        return mapper.get(format_id, "OTHER")
+    
 class Currency(IntEnum):
     US_DOLLAR = 1
     EURO = 2
@@ -33,3 +42,12 @@ class Currency(IntEnum):
             # ...
         }
         return mapper.get(format.upper(), Currency.OTHER)
+    
+    @staticmethod
+    def to_str(format_id: int) -> str:
+        mapper = {
+            Currency.US_DOLLAR.value: "US Dollar",
+            Currency.EURO.value: "Euro"
+            # ...
+        }
+        return mapper.get(format_id, "OTHER")
