@@ -98,8 +98,9 @@ class QueryResultsVerifier:
             for bank_id, (account, amount) in max_tran_per_bank.items():
                 # ---- STORE QUERY 2 RESULT ----
                 input_q2_results.append([
-                    bank_id, # TODO: Bank name instead of bank id
+                    bank_id,
                     account, 
+                    # TODO: Bank name
                     amount
                 ])
 
@@ -158,8 +159,8 @@ class QueryResultsVerifier:
                     input_q3_results.append([
                         transaction_item.from_bank_id,
                         transaction_item.from_account,
-                        transaction_item.amount,
-                        transaction_item.payment_format
+                        transaction_item.payment_format,
+                        transaction_item.amount
                     ])
 
             # ---- SORT QUERY 3 RESULTS ----
