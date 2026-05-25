@@ -25,6 +25,13 @@ class Client:
         self.finished_queries = 0
         self.output_files: list[TextIO] = []
         self.csv_writers: list[CsvWriter] = []
+        self.output_files_headers = {
+            1: ["From Bank", "From Account", "To Bank", "To Account", "Amount"],
+            2: ["Bank Name", "Account", "Amount"],
+            3: ["Bank", "Account", "Payment Format", "Amount"],
+            4: ["Bank", "Account"],
+            5: ["Count"]
+        }
 
     def handle_sigterm(self, signum, frame):
         logging.info("Recieved SIGTERM signal")
@@ -66,9 +73,11 @@ class Client:
             os.makedirs(output_dir)
 
         for i in range(_QUERIES_COUNT):
-            self.output_files.append(open(f"{OUTPUT_FILE_PREFIX}{i+1}.csv", "w"))
+            q_num = i + 1
+            self.output_files.append(open(f"{OUTPUT_FILE_PREFIX}{q_num}.csv", "w"))
             self.csv_writers.append(csv.writer(self.output_files[i], delimiter=",", quotechar='"'))
-    
+            self.csv_writers[i].writerow(self.output_files_headers[q_num])
+
     def close_output_files(self):
         for file in self.output_files:
             file.close()
