@@ -82,18 +82,20 @@ class PaymentFormatAvg:
             return
         
         logging.info(f"All EOF messages received for client. Sending averages")
-        for payment_format_id, (sum_amount, count) in self._sum_count_per_payment_format[client_id].items():
-            average = sum_amount / count
-            q3_avg = Q3Average(payment_format_id, average).serialize()
-            msg = MsgEnvelope(client_id, MsgType.Q3_AVG, q3_avg).serialize()
-            exch_idx = self._route(client_id, payment_format_id, AMOUNT_FILTER_AMOUNT)
-            self._data_output_exchanges[exch_idx].send(msg)
+        if client_id in self._sum_count_per_payment_format:
+            for payment_format_id, (sum_amount, count) in self._sum_count_per_payment_format[client_id].items():
+                average = sum_amount / count
+                q3_avg = Q3Average(payment_format_id, average).serialize()
+                msg = MsgEnvelope(client_id, MsgType.Q3_AVG, q3_avg).serialize()
+                exch_idx = self._route(client_id, payment_format_id, AMOUNT_FILTER_AMOUNT)
+                self._data_output_exchanges[exch_idx].send(msg)
 
         logging.info(f"Sending END_OF_RECORDS message for client")
         for data_output_exchange in self._data_output_exchanges:
             data_output_exchange.send(MsgEnvelope(client_id, MsgType.END_OF_RECORDS, b"").serialize())
 
-        del self._sum_count_per_payment_format[client_id]
+        if client_id in self._sum_count_per_payment_format:
+            del self._sum_count_per_payment_format[client_id]
         del self._eof_received[client_id]
 
     def _process_data_message(self, message, ack, nack):
