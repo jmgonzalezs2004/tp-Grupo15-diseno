@@ -15,6 +15,9 @@ def deserialize_uint(b):
 def deserialize_float(b):
     return struct.unpack(_BIG_ENDIAN + 'f', b)[0]
 
+def buffer_to_string(b: bytes):
+    return b.decode("utf-8")
+
 class MemoryReader:
     def __init__(self, data: bytes):
         self.data = data
@@ -22,6 +25,9 @@ class MemoryReader:
 
     def skip(self, amount: int):
         self.pos += amount
+
+    def get_remaining(self) -> bytes:
+        return self.data[self.pos:]
 
     def read_bytes(self, size: int) -> bytes:
         if self.pos + size > len(self.data):
@@ -51,6 +57,10 @@ class MemoryReader:
     def read_float(self) -> float:
         data = self.read_bytes(FLOAT_SIZE)
         return struct.unpack(_BIG_ENDIAN + 'f', data)[0]
+    
+    def read_string(self) -> str:
+        length = self.read_uint32()
+        return self.read_bytes(length).decode("utf-8")
 
 
 def serialize_bool(u):
@@ -82,9 +92,5 @@ def deserialize_list(b, item_deserializer):
     reader = MemoryReader(b)
     length = reader.read_uint32()
     return [item_deserializer(reader) for i in range(length)]
-
-def deserialize_string(reader: MemoryReader) -> str:
-    length = reader.read_uint32()
-    return reader.read_bytes(length).decode("utf-8")
 
 

@@ -4,7 +4,7 @@ import socket
 import signal
 import multiprocessing
 from common.protocol import serialization
-from common.protocol.internal_query import MaxBankResult
+from common.protocol.internal_messages import Q2Result
 from message_handler.client_id_generator import ClientIdGenerator
 import message_handler
 from common import middleware, protocol
@@ -64,19 +64,24 @@ def handle_client_response(client_list: list[list[message_handler.MessageHandler
                     continue
 
                 msg_type = deserialized_message.msg_type
-                if msg_type == protocol.internal.MsgType.COUNT_RESULT:
+                if msg_type == protocol.internal.MsgType.Q1_TRAN:
                     protocol.external.forward_msg(
                         client_socket,
-                        protocol.external.MsgType.COUNT_RESULT,
+                        protocol.external.MsgType.Q1_TRAN,
                         deserialized_message.raw_data)
-                elif msg_type == protocol.internal.MsgType.TEMP_Q2_RESULT:
-                    max_banks = serialization.deserialize_list(
-                        deserialized_message.raw_data, MaxBankResult.deserialize)
-                    max_banks = [(item.from_bank, item.from_account, item.amount) for item in max_banks]
+                elif msg_type == protocol.internal.MsgType.Q1_END:
                     protocol.external.send_msg(
                         client_socket,
+                        protocol.external.MsgType.Q1_END)
+                elif msg_type == protocol.internal.MsgType.Q2_RESULT:
+                    protocol.external.forward_msg(
+                        client_socket,
                         protocol.external.MsgType.Q2_RESULT,
-                        max_banks)
+                        deserialized_message.raw_data)
+                elif msg_type == protocol.internal.MsgType.Q2_END:
+                    protocol.external.send_msg(
+                        client_socket,
+                        protocol.external.MsgType.Q2_END)
 
                 protocol.external.recv_msg(client_socket)
                 break
