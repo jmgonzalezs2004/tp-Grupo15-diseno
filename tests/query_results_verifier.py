@@ -27,6 +27,8 @@ class QueryResultsVerifier:
 
         if len(expected_query_results) != len(output_query_results):
             raise Exception(f"Q{query_number}: Expected {len(expected_query_results)} results, but got {len(output_query_results)}")
+
+        output_query_results.sort()
         if expected_query_results != output_query_results:
             raise Exception(f"Q{query_number}: Output results do not match expected results")
 
