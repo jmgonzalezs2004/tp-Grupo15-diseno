@@ -61,6 +61,10 @@ class Client:
         protocol.external.recv_msg(self.server_socket)
 
     def initialize_output_files(self):
+        output_dir = os.path.dirname(OUTPUT_FILE_PREFIX)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
         for i in range(_QUERIES_COUNT):
             self.output_files.append(open(f"{OUTPUT_FILE_PREFIX}{i+1}.csv", "w"))
             self.csv_writers.append(csv.writer(self.output_files[i], delimiter=",", quotechar='"'))
