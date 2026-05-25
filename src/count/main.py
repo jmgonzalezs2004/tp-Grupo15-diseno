@@ -5,7 +5,7 @@ import signal
 from common import middleware
 from common.protocol import serialization
 import common.protocol.internal as protocol
-from common.protocol.internal_messages import Transaction
+from common.protocol.internal_messages import Q1Transaction
 
 MOM_HOST = os.environ["MOM_HOST"]
 INPUT_QUEUE = os.environ["INPUT_QUEUE"]
@@ -23,7 +23,7 @@ class JoinFilter:
         )
         self.count_by_client: dict[str, int] = {}
 
-    def _process_tran(self, client_id, transaction: Transaction):
+    def _process_tran(self, client_id, transaction: Q1Transaction):
         logging.info(f"Received transaction for client {client_id}")
         if not client_id in self.count_by_client:
             self.count_by_client[client_id] = 0
@@ -40,8 +40,8 @@ class JoinFilter:
 
     def process_messsage(self, message, ack, nack):
         envelope = protocol.MsgEnvelope.deserialize(message)
-        if envelope.msg_type == protocol.MsgType.TRAN_RECORD:
-            tran = Transaction.deserialize(envelope.raw_data)
+        if envelope.msg_type == protocol.MsgType.Q1_TRAN:
+            tran = Q1Transaction.deserialize(envelope.raw_data)
             self._process_tran(envelope.client_id, tran)
         elif envelope.msg_type == protocol.MsgType.END_OF_RECORDS:
             self._process_eof(envelope.client_id)

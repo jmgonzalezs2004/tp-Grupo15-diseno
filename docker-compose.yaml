@@ -5,7 +5,7 @@ services:
       dockerfile: client/Dockerfile
     container_name: client_0
     depends_on:
-    - usd_filter_0
+    - distributor_0
     environment:
     - INPUT_FILE=/datasets/input_0.csv
     - OUTPUT_FILE_PREFIX=/output/0/output_
@@ -30,6 +30,8 @@ services:
     - PYTHONUNBUFFERED=1
     - SERVER_HOST=gateway
     - SERVER_PORT=5678
+    - DISTRIBUTOR_AMOUNT=1
+    - DISTRIBUTOR_PREFIX=distributor
   rabbitmq:
     build:
       context: ./src/rabbitmq
@@ -46,54 +48,68 @@ services:
     ports:
     - 5672:5672
     - 15672:15672
-  count_0:
+  distributor_0:
     build:
       context: ./src/
-      dockerfile: count/Dockerfile
-    container_name: count_0
+      dockerfile: distributor/Dockerfile
+    container_name: distributor_0
+    depends_on:
+    - q1_join
+    - bank_mapper_0
+    environment:
+    - ID=0
+    - INPUT_QUEUE=input_queue
+    - Q1_QUEUE=q1_queue
+    - Q2_QUEUE=q2_queue
+    - Q3_QUEUE=q3_queue
+    - Q4_QUEUE=q4_queue
+    - Q5_QUEUE=q5_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+
+  # QUERY 1
+  q1_join:
+    build:
+      context: ./src/
+      dockerfile: q1_join/Dockerfile
+    container_name: q1_join
     depends_on:
     - gateway
     environment:
-    - ID=0
-    - INPUT_QUEUE=count_queue
+    - INPUT_QUEUE=q1_queue
     - OUTPUT_QUEUE=results_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - COUNT_AMOUNT=1
-    - COUNT_PREFIX=count
-  usd_filter_0:
+
+  # QUERY 2
+  bank_mapper_0:
     build:
       context: ./src/
-      dockerfile: filter/Dockerfile
-    container_name: usd_filter_0
+      dockerfile: bank_mapper/Dockerfile
+    container_name: bank_mapper_0
     depends_on:
-    - count_0
-    - max_bank_0
+    - bank_max_0
     environment:
-    - FILTER_KIND=usd
     - ID=0
-    - INPUT_QUEUE=input_queue
-    - OUTPUT_QUEUE=count_queue
-    - Q2_OUTPUT_QUEUE=q2_input_queue
+    - INPUT_QUEUE=q2_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - FILTER_AMOUNT=1
-    - FILTER_PREFIX=filter
-  max_bank_0:
+    - BANK_MAX_AMOUNT=1
+    - BANK_MAX_PREFIX=bank_max
+  bank_max_0:
     build:
       context: ./src/
-      dockerfile: max_bank/Dockerfile
-    container_name: max_bank_0
+      dockerfile: bank_max/Dockerfile
+    container_name: bank_max_0
     depends_on:
     - q2_join
     environment:
     - ID=0
-    - INPUT_QUEUE=q2_input_queue
     - OUTPUT_QUEUE=q2_join_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - MAX_BANK_AMOUNT=1
-    - MAX_BANK_PREFIX=filter
+    - BANK_MAX_AMOUNT=1
+    - BANK_MAX_PREFIX=bank_max
   q2_join:
     build:
       context: ./src/
@@ -107,8 +123,12 @@ services:
     - OUTPUT_QUEUE=results_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - Q2_JOIN_AMOUNT=1
-    - Q2_JOIN_PREFIX=q2_join
+    - BANK_MAX_AMOUNT=1
+
+  # QUERY 3
+
+
+  # QUERY 4
   accounts_mapper_0:
     build:
       context: ./src/
@@ -222,3 +242,5 @@ services:
     - PYTHONUNBUFFERED=1
     - THREE_CHAIN_AMOUNT=3
     - SCATTER_GATHER_TRAN_THRESHOLD=5
+
+  # QUERY 5
