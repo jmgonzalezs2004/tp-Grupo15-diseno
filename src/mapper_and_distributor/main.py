@@ -72,7 +72,7 @@ class MapperAndDistributor:
             tran_preceding = Q3TransactionPreceding(transaction.payment_format_id, transaction.amount)
             msg = MsgEnvelope(client_id, MsgType.Q3_TRAN_PRECEDING, tran_preceding.serialize()).serialize()
             exch_idx = self._route(client_id, transaction.payment_format_id, PAYMENT_FORMAT_AVG_AMOUNT)
-            self._queue_data_output_exchanges.put(msg, PAYMENT_FORMAT_AVG_PREFIX, [exch_idx])
+            self._queue_data_output_exchanges.put((msg, PAYMENT_FORMAT_AVG_PREFIX, [exch_idx]))
 
         subsequent_from_dt = int(datetime(2022, 9, 6, tzinfo=UTC).timestamp())
         subsequent_to_dt = int(datetime(2022, 9, 15, 23, 59, 59, tzinfo=UTC).timestamp())
@@ -84,7 +84,7 @@ class MapperAndDistributor:
                                                       transaction.amount)
             msg = MsgEnvelope(client_id, MsgType.Q3_TRAN_SUBSEQUENT, tran_subsequent.serialize()).serialize()
             exch_idx = self._route(client_id, transaction.payment_format_id, AMOUNT_FILTER_AMOUNT)
-            self._queue_data_output_exchanges.put(msg, AMOUNT_FILTER_PREFIX, [exch_idx])
+            self._queue_data_output_exchanges.put((msg, AMOUNT_FILTER_PREFIX, [exch_idx]))
 
     def _process_eof(self, client_id):
         logging.info(f"Received EOF")
@@ -98,7 +98,7 @@ class MapperAndDistributor:
         """
 
         logging.info(f"Publishing EOF message")
-        msg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS_NOTIF, b"").serialize()
+        msg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS_NOTIFY, b"").serialize()
         self._control_exchange_sender.send(msg)
 
     def _process_data_message(self, message, ack, nack):
@@ -132,7 +132,7 @@ class MapperAndDistributor:
         with self._lock_processing_message:
             try:
                 msg = MsgEnvelope.deserialize(message)
-                if msg.msg_type == MsgType.END_OF_RECORDS_NOTIF:
+                if msg.msg_type == MsgType.END_OF_RECORDS_NOTIFY:
                     self._process_eof_notif(msg.client_id)
                 else:
                     logging.error(f"Unknown control message type: {msg.msg_type}")
@@ -160,16 +160,12 @@ class MapperAndDistributor:
         """
 
         self._data_output_exchanges = {
-            PAYMENT_FORMAT_AVG_PREFIX: MessageMiddlewareExchangeRabbitMQ(
-                MOM_HOST, PAYMENT_FORMAT_AVG_PREFIX, 
-                [f"{PAYMENT_FORMAT_AVG_PREFIX}_{i}" 
-                 for i in range(PAYMENT_FORMAT_AVG_AMOUNT)]
-            ),
-            AMOUNT_FILTER_PREFIX: MessageMiddlewareExchangeRabbitMQ(
-                MOM_HOST, AMOUNT_FILTER_PREFIX, 
-                [f"{AMOUNT_FILTER_PREFIX}_{i}" 
-                 for i in range(AMOUNT_FILTER_AMOUNT)]
-            )
+            PAYMENT_FORMAT_AVG_PREFIX: [MessageMiddlewareExchangeRabbitMQ(
+                MOM_HOST, PAYMENT_FORMAT_AVG_PREFIX, [f"{PAYMENT_FORMAT_AVG_PREFIX}_{i}"]
+            ) for i in range(PAYMENT_FORMAT_AVG_AMOUNT)],
+            AMOUNT_FILTER_PREFIX: [MessageMiddlewareExchangeRabbitMQ(
+                MOM_HOST, AMOUNT_FILTER_PREFIX, [f"{AMOUNT_FILTER_PREFIX}_{i}"]
+            ) for i in range(AMOUNT_FILTER_AMOUNT)]
         }
 
         while self._running or not self._queue_data_output_exchanges.empty():
