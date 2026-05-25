@@ -36,7 +36,6 @@ class MsgType(IntEnum):
     Q5_COUNT = 53
     # TODO REMOVE THIS
     COUNT_RESULT = 100
-    TEMP_Q2_RESULT = 101
 
 class MsgEnvelope:
     def __init__(self, client_id: str, msg_type: MsgType, raw_data: bytes):

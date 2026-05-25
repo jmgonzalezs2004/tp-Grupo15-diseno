@@ -7,6 +7,8 @@ from common.protocol.internal import MsgType
 from common.protocol.serialization import MemoryReader
 
 class SerializableMessage:
+    MESSAGE_TYPE: ClassVar[int]
+
     def serialize(self) -> bytes:
         raise NotImplementedError
 
@@ -73,7 +75,7 @@ class BankRecord(SerializableMessage):
         reader = MemoryReader(data)
         return cls(
             bank_id=reader.read_uint32(),
-            bank_name=serialization.deserialize_string(reader),
+            bank_name=reader.read_string(),
         )
 
 # ----------------
@@ -88,6 +90,14 @@ class Q1Transaction(SerializableMessage):
     to_bank_id: int
     to_account: int
     amount: float
+
+    @staticmethod
+    def from_transaction(src_transaction: Transaction):
+        return Q1Transaction(src_transaction.from_bank_id,
+                             src_transaction.from_account,
+                             src_transaction.to_bank_id,
+                             src_transaction.to_account,
+                             src_transaction.amount)
 
     def serialize(self) -> bytes:
         return b"".join([
@@ -120,6 +130,12 @@ class Q2Transaction(SerializableMessage):
     from_account: int
     amount: float
 
+    @staticmethod
+    def from_transaction(src_transaction: Transaction):
+        return Q2Transaction(src_transaction.from_bank_id,
+                             src_transaction.from_account,
+                             src_transaction.amount)
+
     def serialize(self) -> bytes:
         return b"".join([
             serialization.serialize_uint32(self.from_bank_id),
@@ -143,6 +159,12 @@ class Q2BankMax(SerializableMessage):
     from_account: int
     amount: float
 
+    @staticmethod
+    def from_transaction(src_transaction: Q2Transaction):
+        return Q2BankMax(src_transaction.from_bank_id,
+                         src_transaction.from_account,
+                         src_transaction.amount)
+
     def serialize(self) -> bytes:
         return b"".join([
             serialization.serialize_uint32(self.from_bank_id),
@@ -153,6 +175,10 @@ class Q2BankMax(SerializableMessage):
     @classmethod
     def deserialize(cls, data: bytes):
         reader = MemoryReader(data)
+        return cls.deserialize_reader(reader)
+    
+    @classmethod
+    def deserialize_reader(cls, reader: MemoryReader):
         return cls(
             from_bank_id=reader.read_uint32(),
             from_account=reader.read_uint64(),
@@ -172,12 +198,16 @@ class Q2Result(SerializableMessage):
             serialization.serialize_uint64(self.from_account),
             serialization.serialize_float(self.amount),
         ])
-
+    
     @classmethod
     def deserialize(cls, data: bytes):
         reader = MemoryReader(data)
+        return cls.deserialize_reader(reader)
+    
+    @classmethod
+    def deserialize_reader(cls, reader: MemoryReader):
         return cls(
-            from_bank_name=serialization.deserialize_string(reader),
+            from_bank_name=reader.read_string(),
             from_account=reader.read_uint64(),
             amount=reader.read_float(),
         )
@@ -214,7 +244,7 @@ class BankNameResponse(SerializableMessage):
         reader = MemoryReader(data)
         return cls(
             bank_id=reader.read_uint32(),
-            bank_name=serialization.deserialize_string(reader),
+            bank_name=reader.read_string(),
         )
     
 # ----------------
@@ -229,6 +259,14 @@ class Q3Transaction(SerializableMessage):
     from_account: int
     payment_format_id: PaymentFormat
     amount: float
+
+    @staticmethod
+    def from_transaction(src_transaction: Transaction):
+        return Q3Transaction(src_transaction.timestamp,
+                             src_transaction.from_bank_id,
+                             src_transaction.from_account,
+                             src_transaction.payment_format_id,
+                             src_transaction.amount)
 
     def serialize(self) -> bytes:
         return b"".join([
@@ -359,6 +397,12 @@ class Q5Transaction(SerializableMessage):
     timestamp: int
     currency_id: Currency
     amount: float
+
+    @staticmethod
+    def from_transaction(src_transaction: Transaction):
+        return Q5Transaction(src_transaction.timestamp,
+                             src_transaction.currency_id,
+                             src_transaction.amount)
 
     def serialize(self) -> bytes:
         return b"".join([

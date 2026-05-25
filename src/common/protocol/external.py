@@ -61,7 +61,7 @@ def _recv_result_count(socket: socket):
 
 def _recv_q2_result(socket: socket):
     def item_deserializer(reader: MemoryReader):
-        from_bank = reader.read_uint32()
+        from_bank = reader.read_string()
         from_account = reader.read_uint64()
         amount = round(reader.read_float(), 2)
         return (from_bank, from_account, amount)
@@ -120,7 +120,7 @@ def _serialize_q2_result(bank_max: list):
         from_bank, from_account, amount = item
         return b"".join(
             [
-                serialization.serialize_uint32(from_bank),
+                serialization.serialize_string(from_bank),
                 serialization.serialize_uint64(from_account),
                 serialization.serialize_float(amount)
             ]

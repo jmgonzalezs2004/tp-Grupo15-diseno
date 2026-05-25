@@ -4,7 +4,7 @@ import socket
 import signal
 import multiprocessing
 from common.protocol import serialization
-from common.protocol.internal_query import MaxBankResult
+from common.protocol.internal_messages import Q2Result
 from message_handler.client_id_generator import ClientIdGenerator
 import message_handler
 from common import middleware, protocol
@@ -69,10 +69,10 @@ def handle_client_response(client_list: list[list[message_handler.MessageHandler
                         client_socket,
                         protocol.external.MsgType.COUNT_RESULT,
                         deserialized_message.raw_data)
-                elif msg_type == protocol.internal.MsgType.TEMP_Q2_RESULT:
+                elif msg_type == protocol.internal.MsgType.Q2_RESULT:
                     max_banks = serialization.deserialize_list(
-                        deserialized_message.raw_data, MaxBankResult.deserialize)
-                    max_banks = [(item.from_bank, item.from_account, item.amount) for item in max_banks]
+                        deserialized_message.raw_data, Q2Result.deserialize_reader)
+                    max_banks = [(item.from_bank_name, item.from_account, item.amount) for item in max_banks]
                     protocol.external.send_msg(
                         client_socket,
                         protocol.external.MsgType.Q2_RESULT,
