@@ -10,6 +10,7 @@ from common.protocol.internal_messages import Q2BankMax, Q2Result
 MOM_HOST = os.environ["MOM_HOST"]
 INPUT_QUEUE = os.environ["INPUT_QUEUE"]
 OUTPUT_QUEUE = os.environ["OUTPUT_QUEUE"]
+BANK_MAX_AMOUNT = int(os.environ["BANK_MAX_AMOUNT"])
 
 
 class Q2JoinFilter:
@@ -22,21 +23,29 @@ class Q2JoinFilter:
             MOM_HOST, OUTPUT_QUEUE
         )
 
-    def _process_partial_max(self, client_id, partial_max: list[Q2BankMax]):
-        logging.info(f"Received partial bank max for client {client_id}")
+    def _process_bank_max(self, client_id, bank_max: Q2BankMax):
+        logging.info(f"Received bank max for client {client_id}")
         # TODO Add bank names
         logging.info(f"Sending query 2 result for client {client_id}")
-        # TODO Send individual result instead of a list
-        results = [Q2Result(f"Bank {item.from_bank_id}", item.from_account, item.amount) for item in partial_max]
-        raw_data = serialization.serialize_list(results, Q2Result.serialize)
-        out_result_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_RESULT, raw_data)
+        result = Q2Result(f"Bank {bank_max.from_bank_id}", bank_max.from_account, bank_max.amount)
+        out_result_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_RESULT, result.serialize())
         self.output_queue.send(out_result_msg.serialize())
+    
+    def _process_eof(self, client_id):
+        logging.info(f"Received EOF for client {client_id}")
+        # TODO Wait for BANK_MAX_AMOUNT EOFs
+        
+        logging.info(f"Sending END for client {client_id}")
+        eof_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_END, b"")
+        self.output_queue.send(eof_msg.serialize())
 
     def process_messsage(self, message, ack, nack):
         envelope = protocol.MsgEnvelope.deserialize(message)
         if envelope.msg_type == protocol.MsgType.Q2_BANK_MAX:
-            partial_max = serialization.deserialize_list(envelope.raw_data, Q2BankMax.deserialize_reader)
-            self._process_partial_max(envelope.client_id, partial_max)
+            bank_max = Q2BankMax.deserialize(envelope.raw_data)
+            self._process_bank_max(envelope.client_id, bank_max)
+        elif envelope.msg_type == protocol.MsgType.END_OF_RECORDS:
+            self._process_eof(envelope.client_id)
         else:
             raise RuntimeError(f"msg_type {envelope.msg_type} not supported")
         ack()

@@ -3,19 +3,20 @@ import logging
 import signal
 
 from common import middleware
-from common.protocol import serialization
 import common.protocol.internal as protocol
 from common.protocol.internal_messages import Q2BankMax, Q2Transaction
 
+ID = int(os.environ["ID"])
 MOM_HOST = os.environ["MOM_HOST"]
-INPUT_QUEUE = os.environ["INPUT_QUEUE"]
 OUTPUT_QUEUE = os.environ["OUTPUT_QUEUE"]
+BANK_MAX_AMOUNT = int(os.environ["BANK_MAX_AMOUNT"])
+BANK_MAX_PREFIX = os.environ["BANK_MAX_PREFIX"]
 
 
-class MaxBankFilter:
+class BankMaxFilter:
     def __init__(self):
-        self.input_queue = middleware.MessageMiddlewareQueueRabbitMQ(
-            MOM_HOST, INPUT_QUEUE
+        self.input_exchange = middleware.MessageMiddlewareExchangeRabbitMQ(
+            MOM_HOST, BANK_MAX_PREFIX, [f"{BANK_MAX_PREFIX}_{ID}"]
         )
         self.output_queue = middleware.MessageMiddlewareQueueRabbitMQ(
             MOM_HOST, OUTPUT_QUEUE
@@ -34,11 +35,15 @@ class MaxBankFilter:
     def _process_eof(self, client_id):
         logging.info(f"Received EOF for client {client_id}")
 
-        logging.info(f"Sending partial MAX for client {client_id}")
         client_max_results = list(self.max_by_bank_client.pop(client_id, {}).values())
-        raw_data = serialization.serialize_list(client_max_results, Q2BankMax.serialize)
-        message = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_BANK_MAX, raw_data)
-        self.output_queue.send(message.serialize())
+        logging.info(f"Sending partial MAX of {len(client_max_results)} banks for client {client_id}")
+        for bank_max_entry in client_max_results:
+            message = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_BANK_MAX, bank_max_entry.serialize())
+            self.output_queue.send(message.serialize())
+        
+        logging.info(f"Sending EOF for client {client_id}")
+        eof_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.END_OF_RECORDS, b"")
+        self.output_queue.send(eof_msg.serialize())
 
     def process_messsage(self, message, ack, nack):
         envelope = protocol.MsgEnvelope.deserialize(message)
@@ -52,26 +57,26 @@ class MaxBankFilter:
         ack()
 
     def start(self):
-        self.input_queue.start_consuming(self.process_messsage)
+        self.input_exchange.start_consuming(self.process_messsage)
         self.stop()
 
     def stop(self):
         logging.info("Stopping JoinFilter...")
-        self.input_queue.close()
+        self.input_exchange.close()
         self.output_queue.close()
 
-def handle_sigterm(max_bank_filter: MaxBankFilter):
+def handle_sigterm(bank_max_filter: BankMaxFilter):
     logging.info("SIGTERM received")
     try:
-        max_bank_filter.input_queue.stop_consuming()
+        bank_max_filter.input_exchange.stop_consuming()
     except Exception as e:
         logging.error(e)
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    max_bank_filter = MaxBankFilter()
-    signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(max_bank_filter))
-    max_bank_filter.start()
+    bank_max_filter = BankMaxFilter()
+    signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(bank_max_filter))
+    bank_max_filter.start()
 
     return 0
 

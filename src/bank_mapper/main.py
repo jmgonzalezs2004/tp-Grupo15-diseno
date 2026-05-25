@@ -8,7 +8,6 @@ from common.protocol.internal_messages import Q2Transaction
 
 MOM_HOST = os.environ["MOM_HOST"]
 INPUT_QUEUE = os.environ["INPUT_QUEUE"]
-OUTPUT_QUEUE = os.environ["OUTPUT_QUEUE"]
 BANK_MAX_AMOUNT = int(os.environ["BANK_MAX_AMOUNT"])
 BANK_MAX_PREFIX = os.environ["BANK_MAX_PREFIX"]
 
