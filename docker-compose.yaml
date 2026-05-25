@@ -5,7 +5,7 @@ services:
       dockerfile: client/Dockerfile
     container_name: client_0
     depends_on:
-    - usd_filter_0
+    - distributor_0
     environment:
     - INPUT_FILE=/datasets/input_0.csv
     - OUTPUT_FILE_PREFIX=/output/0/output_
@@ -30,6 +30,8 @@ services:
     - PYTHONUNBUFFERED=1
     - SERVER_HOST=gateway
     - SERVER_PORT=5678
+    - DISTRIBUTOR_AMOUNT=1
+    - DISTRIBUTOR_PREFIX=distributor
   rabbitmq:
     build:
       context: ./src/rabbitmq
@@ -46,6 +48,24 @@ services:
     ports:
     - 5672:5672
     - 15672:15672
+  distributor_0:
+    build:
+      context: ./src/
+      dockerfile: distributor/Dockerfile
+    container_name: distributor_0
+    depends_on:
+    - count_0
+    - max_bank_0
+    environment:
+    - ID=0
+    - INPUT_QUEUE=input_queue
+    - Q1_QUEUE=q1_queue
+    - Q2_QUEUE=q2_queue
+    - Q3_QUEUE=q3_queue
+    - Q4_QUEUE=q4_queue
+    - Q5_QUEUE=q5_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
   count_0:
     build:
       context: ./src/
@@ -55,30 +75,12 @@ services:
     - gateway
     environment:
     - ID=0
-    - INPUT_QUEUE=count_queue
+    - INPUT_QUEUE=q1_queue
     - OUTPUT_QUEUE=results_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
     - COUNT_AMOUNT=1
     - COUNT_PREFIX=count
-  usd_filter_0:
-    build:
-      context: ./src/
-      dockerfile: filter/Dockerfile
-    container_name: usd_filter_0
-    depends_on:
-    - count_0
-    - max_bank_0
-    environment:
-    - FILTER_KIND=usd
-    - ID=0
-    - INPUT_QUEUE=input_queue
-    - OUTPUT_QUEUE=count_queue
-    - Q2_OUTPUT_QUEUE=q2_input_queue
-    - MOM_HOST=rabbitmq
-    - PYTHONUNBUFFERED=1
-    - FILTER_AMOUNT=1
-    - FILTER_PREFIX=filter
   max_bank_0:
     build:
       context: ./src/
@@ -88,7 +90,7 @@ services:
     - q2_join
     environment:
     - ID=0
-    - INPUT_QUEUE=q2_input_queue
+    - INPUT_QUEUE=q2_queue
     - OUTPUT_QUEUE=q2_join_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
