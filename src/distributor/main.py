@@ -4,7 +4,7 @@ import signal
 
 from common import middleware
 import common.protocol.internal as protocol
-from common.protocol.internal_messages import Q1Transaction, Q2Transaction, Q3Transaction, Q5Transaction, SerializableMessage, Transaction
+from common.protocol.internal_messages import Q1Transaction, Q2Transaction, Q3Transaction, Q4Transaction2Acc, Q5Transaction, SerializableMessage, Transaction
 from criteria.criteria import build_criteria_for_query
 
 MOM_HOST = os.environ["MOM_HOST"]
@@ -67,9 +67,8 @@ class FilterFilter:
             self._distribute_tran(client_id, q_tran, self.q3_output_queue)
         if self.q4_criteria.check(transaction):
             logging.info(f"Sending transaction to query 4 for client {client_id}")
-            # TODO Implement query
-            #q_tran = Q4Transaction.from_transaction(transaction)
-            #self._distribute_tran(client_id, q_tran, self.q4_output_queue)
+            q_tran = Q4Transaction2Acc.from_transaction(transaction)
+            self._distribute_tran(client_id, q_tran, self.q4_output_queue)
         if self.q5_criteria.check(transaction):
             logging.info(f"Sending transaction to query 5 for client {client_id}")
             q_tran = Q5Transaction.from_transaction(transaction)
@@ -83,8 +82,8 @@ class FilterFilter:
         self.q1_output_queue.send(message)
         self.q2_output_queue.send(message)
         self.q3_output_queue.send(message)
+        self.q4_output_queue.send(message)
         # TODO Enable
-        #self.q4_output_queue.send(message)
         #self.q5_output_queue.send(message)
 
     def process_messsage(self, message, ack, nack):

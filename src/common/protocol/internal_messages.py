@@ -410,6 +410,12 @@ class Q4Transaction2Acc(SerializableMessage):
     from_acc: Account
     to_acc: Account
 
+    @staticmethod
+    def from_transaction(src_transaction: Transaction):
+        from_acc = Account(src_transaction.from_bank_id, src_transaction.from_account)
+        to_acc = Account(src_transaction.to_bank_id, src_transaction.to_account)
+        return Q4Transaction2Acc(from_acc, to_acc)
+
     def serialize(self) -> bytes:
         return b"".join([
             self.from_acc.serialize(),

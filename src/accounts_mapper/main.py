@@ -76,7 +76,7 @@ class AccountsMapper:
         """
 
         logging.info(f"Publishing EOF message")
-        msg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS_NOTIF, b"").serialize()
+        msg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS_NOTIFY, b"").serialize()
         self._control_exchange_sender.send(msg)
 
     def _process_data_message(self, message, ack, nack):
@@ -109,7 +109,7 @@ class AccountsMapper:
         with self._lock_processing_message:
             try:
                 msg = MsgEnvelope.deserialize(message)
-                if msg.msg_type == MsgType.END_OF_RECORDS_NOTIF:
+                if msg.msg_type == MsgType.END_OF_RECORDS_NOTIFY:
                     self._process_eof_notif(msg.client_id)
                 else:
                     logging.error(f"Unknown control message type: {msg.msg_type}")

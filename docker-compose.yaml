@@ -312,7 +312,7 @@ services:
     - three_chain_2
     environment:
     - ID=0
-    - INPUT_QUEUE=query_queue
+    - INPUT_QUEUE=q4_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
     - ACCOUNTS_MAPPER_AMOUNT=3
@@ -330,7 +330,7 @@ services:
     - three_chain_2
     environment:
     - ID=1
-    - INPUT_QUEUE=query_queue
+    - INPUT_QUEUE=q4_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
     - ACCOUNTS_MAPPER_AMOUNT=3
@@ -348,7 +348,7 @@ services:
     - three_chain_2
     environment:
     - ID=2
-    - INPUT_QUEUE=query_queue
+    - INPUT_QUEUE=q4_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
     - ACCOUNTS_MAPPER_AMOUNT=3

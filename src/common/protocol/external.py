@@ -16,7 +16,9 @@ class MsgType(IntEnum):
     Q2_END = 5
     Q3_RESULT_TRAN = 6
     Q3_END = 7
-    # TODO: Complete for Q4 and Q5
+    Q4_LAUNDERING_ACC = 8
+    Q4_END = 9
+    # TODO: Complete for Q5
     ACK = 15
     END_OF_RECORDS = 16
 
@@ -86,6 +88,11 @@ def _recv_q3_result_tran(socket: socket):
     amount = _recv_float(socket)
     return (from_bank_id, from_account, payment_format_id, amount)
 
+def _recv_q4_laundering_acc(socket: socket):
+    bank_id = _recv_uint32(socket)
+    account = _recv_uint64(socket)
+    return (bank_id, account)
+
 def _recv_empty(socket):
     return None
 
@@ -98,6 +105,8 @@ RECV_MSG_HANDLERS = {
     MsgType.Q2_END: _recv_empty,
     MsgType.Q3_RESULT_TRAN: _recv_q3_result_tran,
     MsgType.Q3_END: _recv_empty,
+    MsgType.Q4_LAUNDERING_ACC: _recv_q4_laundering_acc,
+    MsgType.Q4_END: _recv_empty,
     MsgType.ACK: _recv_empty,
     MsgType.END_OF_RECORDS: _recv_empty,
 }
@@ -144,6 +153,9 @@ def _send_q2_end(socket: socket):
 def _send_q3_end(socket: socket):
     socket.sendall(serialization.serialize_uint32(MsgType.Q3_END))
 
+def _send_q4_end(socket: socket):
+    socket.sendall(serialization.serialize_uint32(MsgType.Q4_END))
+
 def _send_ack(socket: socket):
     socket.sendall(serialization.serialize_uint32(MsgType.ACK))
 
@@ -156,7 +168,7 @@ SEND_MSG_HANDLERS = {
     MsgType.Q1_END: _send_q1_end,
     MsgType.Q2_END: _send_q2_end,
     MsgType.Q3_END: _send_q3_end,
-    # TODO: Complete for Q4
+    MsgType.Q4_END: _send_q4_end,
     MsgType.ACK: _send_ack,
     MsgType.END_OF_RECORDS: _send_end_of_records,
 }
