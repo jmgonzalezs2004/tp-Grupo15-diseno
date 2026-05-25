@@ -70,7 +70,7 @@ class AmountFilter:
         logging.info(f"Filtering transactions for client and payment format")
         valid_transactions = []
         for transaction in self._tran_per_payment_format[client_id][average.payment_format_id]:
-            if transaction.amount < average.average / 100:
+            if transaction.amount < average.avg / 100:
                 valid_transactions.append(transaction)
 
         logging.info(f"Sending valid transactions to the output queue")
@@ -100,7 +100,8 @@ class AmountFilter:
         logging.info(f"Sending END_OF_RECORDS message for client")
         self._output_queue.send(MsgEnvelope(client_id, MsgType.END_OF_RECORDS, b"").serialize())
 
-        del self._tran_per_payment_format[client_id]
+        if client_id in self._tran_per_payment_format:
+            del self._tran_per_payment_format[client_id]
         del self._eof_received[client_id]
 
     def _process_data_message(self, message, ack, nack):
@@ -108,7 +109,7 @@ class AmountFilter:
             msg = MsgEnvelope.deserialize(message)
             if msg.msg_type == MsgType.Q3_TRAN_SUBSEQUENT:
                 self._process_transaction(msg.client_id, msg.raw_data)
-            if msg.msg_type == MsgType.Q3_AVG:
+            elif msg.msg_type == MsgType.Q3_AVG:
                 self._process_avg(msg.client_id, msg.raw_data)
             elif msg.msg_type == MsgType.END_OF_RECORDS:
                 self._process_eof(msg.client_id)
