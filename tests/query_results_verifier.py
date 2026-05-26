@@ -3,16 +3,19 @@ from datetime import datetime, UTC
 from tests.utils.transactions_reader import TransactionsReader
 from tests.utils.query_result_output_reader import QueryResultOutputReader
 from tests.utils.usd_converter import USDConverter
+from tests.utils.accounts_reader import AccountsReader
 
 
 QUERY_AMOUNT = 5
 
 
 class QueryResultsVerifier:
-    def __init__(self, input_file_name, output_file_prefix_name):
+    def __init__(self, accounts_file_name, input_file_name, output_file_prefix_name):
+        self._accounts_file_name = accounts_file_name
         self._input_file_name = input_file_name
         self._output_file_prefix_name = output_file_prefix_name
         self._usd_converter = USDConverter()
+        self._bank_names = {}
 
     def verify_query_results(self):
         for q in range(1, QUERY_AMOUNT + 1):
@@ -20,6 +23,8 @@ class QueryResultsVerifier:
             self._verify_q(q)
 
     def _verify_q(self, query_number):
+        self._store_bank_names() 
+
         build_input_query_results_method = getattr(self, f"_build_input_q{query_number}_results")
         expected_query_results = build_input_query_results_method(self._input_file_name)
 
@@ -100,10 +105,8 @@ class QueryResultsVerifier:
             for bank_id, (account, amount) in max_tran_per_bank.items():
                 # ---- STORE QUERY 2 RESULT ----
                 input_q2_results.append([
-                    # TODO: Here should be bank_id,
-                    "Bank " + str(bank_id),
+                    self._bank_names.get(bank_id, "NO_NAME"),
                     account, 
-                    # TODO: Real bank name should be here
                     amount
                 ])
 
@@ -284,3 +287,16 @@ class QueryResultsVerifier:
         finally:
             if tran_reader:
                 tran_reader.close()
+
+    def _store_bank_names(self):
+        accounts_reader = None
+        try:
+            accounts_reader = AccountsReader(self._accounts_file_name)
+            self._bank_names = {}
+            for (bank_id, bank_name) in iter(accounts_reader.next_account, None):
+                self._bank_names[bank_id] = bank_name
+        except Exception as e:
+            raise Exception("Couldn't read accounts file. " + str(e))
+        finally:
+            if accounts_reader:
+                accounts_reader.close()
