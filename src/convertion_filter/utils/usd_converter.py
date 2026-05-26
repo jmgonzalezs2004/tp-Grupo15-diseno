@@ -96,7 +96,7 @@ class USDConverter:
         },
     }
 
-    def convert_to_usd(self, timestamp, currency, amount):
+    def convert_to_usd(self, timestamp, currency, amount: float):
         if currency == "US Dollar":
             return amount
         

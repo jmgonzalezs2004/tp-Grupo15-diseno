@@ -18,7 +18,7 @@ class MsgType(IntEnum):
     Q3_END = 7
     Q4_LAUNDERING_ACC = 8
     Q4_END = 9
-    # TODO: Complete for Q5
+    Q5_RESULT = 10
     ACK = 15
     END_OF_RECORDS = 16
 
@@ -93,6 +93,10 @@ def _recv_q4_laundering_acc(socket: socket):
     account = _recv_uint64(socket)
     return (bank_id, account)
 
+def _recv_q5_result(socket: socket):
+    count = _recv_uint32(socket)
+    return count
+
 def _recv_empty(socket):
     return None
 
@@ -107,6 +111,7 @@ RECV_MSG_HANDLERS = {
     MsgType.Q3_END: _recv_empty,
     MsgType.Q4_LAUNDERING_ACC: _recv_q4_laundering_acc,
     MsgType.Q4_END: _recv_empty,
+    MsgType.Q5_RESULT: _recv_q5_result,
     MsgType.ACK: _recv_empty,
     MsgType.END_OF_RECORDS: _recv_empty,
 }

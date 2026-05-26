@@ -1,5 +1,6 @@
 from enum import IntEnum
 
+
 class PaymentFormat(IntEnum):
     ACH = 1
     WIRE = 2
@@ -25,29 +26,61 @@ class PaymentFormat(IntEnum):
         return mapper.get(format_id, "OTHER")
     
 class Currency(IntEnum):
-    US_DOLLAR = 1
-    EURO = 2
-    YUAN = 3
-    MEXICAN_PESO = 4
-    BITCOIN = 5
-    # ...
-
+    AU_DOLLAR = 1
+    BR_REAL = 2
+    CA_DOLLAR = 3
+    SWISS_FRANC = 4
+    YUAN = 5
+    EURO = 6
+    UK_POUND = 7
+    SHEKEL = 8
+    RUPEE = 9
+    JP_YEN = 10
+    MX_PESO = 11
+    RUBLE = 12
+    SAUDI_RUYAL = 13
+    US_DOLLAR = 14
+    BITCOIN = 15
     OTHER = 64
 
     @staticmethod
     def from_str(format: str) -> "Currency":
         mapper = {
+            "AUSTRALIAN DOLLAR": Currency.AU_DOLLAR,
+            "BRAZIL REAL": Currency.BR_REAL,
+            "CANADIAN DOLLAR": Currency.CA_DOLLAR,
+            "SWISS FRANC": Currency.SWISS_FRANC,
+            "YUAN": Currency.YUAN,
+            "EURO": Currency.EURO,
+            "UK POUND": Currency.UK_POUND,
+            "SHEKEL": Currency.SHEKEL,
+            "RUPEE": Currency.RUPEE,
+            "YEN": Currency.JP_YEN,
+            "MEXICAN PESO": Currency.MX_PESO,
+            "RUBLE": Currency.RUBLE,
+            "SAUDI RIYAL": Currency.SAUDI_RUYAL,
             "US DOLLAR": Currency.US_DOLLAR,
-            "EURO": Currency.EURO
-            # ...
+            "BITCOIN": Currency.BITCOIN,
         }
         return mapper.get(format.upper(), Currency.OTHER)
     
-    @staticmethod
-    def to_str(format_id: int) -> str:
+    @property
+    def label(self) -> str:
         mapper = {
+            Currency.AU_DOLLAR.value: "Australian Dollar",
+            Currency.BR_REAL.value: "Brazil Real",
+            Currency.CA_DOLLAR.value: "Canadian Dollar",
+            Currency.SWISS_FRANC.value: "Swiss Franc",
+            Currency.YUAN.value: "Yuan",
+            Currency.EURO.value: "Euro",
+            Currency.UK_POUND.value: "UK Pound",
+            Currency.SHEKEL.value: "Shekel",
+            Currency.RUPEE.value: "Rupee",
+            Currency.JP_YEN.value: "Yen",
+            Currency.MX_PESO.value: "Mexican Peso",
+            Currency.RUBLE.value: "Ruble",
+            Currency.SAUDI_RUYAL.value: "Saudi Riyal",
             Currency.US_DOLLAR.value: "US Dollar",
-            Currency.EURO.value: "Euro"
-            # ...
+            Currency.BITCOIN.value: "Bitcoin",
         }
-        return mapper.get(format_id, "OTHER")
+        return mapper.get(self, "OTHER")

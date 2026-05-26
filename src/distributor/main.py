@@ -72,8 +72,7 @@ class FilterFilter:
         if self.q5_criteria.check(transaction):
             logging.info(f"Sending transaction to query 5 for client {client_id}")
             q_tran = Q5Transaction.from_transaction(transaction)
-            # TODO Enable
-            #self._distribute_tran(client_id, q_tran, self.q5_output_queue)
+            self._distribute_tran(client_id, q_tran, self.q5_output_queue)
 
     
     def _process_eof(self, client_id, message):
@@ -83,8 +82,7 @@ class FilterFilter:
         self.q2_output_queue.send(message)
         self.q3_output_queue.send(message)
         self.q4_output_queue.send(message)
-        # TODO Enable
-        #self.q5_output_queue.send(message)
+        self.q5_output_queue.send(message)
 
     def process_messsage(self, message, ack, nack):
         envelope = protocol.MsgEnvelope.deserialize(message)

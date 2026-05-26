@@ -3,8 +3,6 @@ import logging
 import socket
 import signal
 import multiprocessing
-from common.protocol import serialization
-from common.protocol.internal_messages import Q2Result
 from message_handler.client_id_generator import ClientIdGenerator
 import message_handler
 from common import middleware, protocol
@@ -100,10 +98,15 @@ def handle_client_response(client_list: list[list[message_handler.MessageHandler
                     protocol.external.send_msg(
                         client_socket,
                         protocol.external.MsgType.Q4_END)
-                # TODO: Complete for Q5
+                elif msg_type == protocol.internal.MsgType.Q5_COUNT:
+                    protocol.external.forward_msg(
+                        client_socket,
+                        protocol.external.MsgType.Q5_RESULT,
+                        deserialized_message.raw_data)
 
                 protocol.external.recv_msg(client_socket)
                 break
+            # TODO remove client after sending all results
             #client_list.pop(client_index)
             ack()
         except socket.error:

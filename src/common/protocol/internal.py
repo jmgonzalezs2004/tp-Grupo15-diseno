@@ -34,11 +34,7 @@ class MsgType(IntEnum):
     Q4_END = 23
     # QUERY 5
     Q5_TRAN = 24
-    Q5_RATE_REQUEST = 25
-    Q5_RATE_RESPONSE = 26
-    Q5_COUNT = 27
-    # TODO REMOVE THIS
-    COUNT_RESULT = 100
+    Q5_COUNT = 25
 
 class MsgEnvelope:
     def __init__(self, client_id: str, msg_type: MsgType, raw_data: bytes):
