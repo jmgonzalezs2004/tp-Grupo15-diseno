@@ -91,7 +91,16 @@ def handle_client_response(client_list: list[list[message_handler.MessageHandler
                     protocol.external.send_msg(
                         client_socket,
                         protocol.external.MsgType.Q3_END)
-                # TODO: Complete for Q4 and Q5
+                elif msg_type == protocol.internal.MsgType.Q4_LAUNDERING_ACC:
+                    protocol.external.forward_msg(
+                        client_socket,
+                        protocol.external.MsgType.Q4_LAUNDERING_ACC,
+                        deserialized_message.raw_data)
+                elif msg_type == protocol.internal.MsgType.Q4_END:
+                    protocol.external.send_msg(
+                        client_socket,
+                        protocol.external.MsgType.Q4_END)
+                # TODO: Complete for Q5
 
                 protocol.external.recv_msg(client_socket)
                 break

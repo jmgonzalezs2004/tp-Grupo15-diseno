@@ -299,7 +299,121 @@ services:
     - PYTHONUNBUFFERED=1
     - AMOUNT_FILTER_AMOUNT=3
 
+
   # QUERY 4
+  accounts_mapper_0:
+    build:
+      context: ./src/
+      dockerfile: accounts_mapper/Dockerfile
+    container_name: accounts_mapper_0
+    depends_on: 
+    - three_chain_0
+    - three_chain_1
+    - three_chain_2
+    environment:
+    - ID=0
+    - INPUT_QUEUE=q4_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - ACCOUNTS_MAPPER_AMOUNT=3
+    - ACCOUNTS_MAPPER_PREFIX=accounts_mapper
+    - THREE_CHAIN_AMOUNT=3
+    - THREE_CHAIN_PREFIX=three_chain
+  accounts_mapper_1:
+    build:
+      context: ./src/
+      dockerfile: accounts_mapper/Dockerfile
+    container_name: accounts_mapper_1
+    depends_on: 
+    - three_chain_0
+    - three_chain_1
+    - three_chain_2
+    environment:
+    - ID=1
+    - INPUT_QUEUE=q4_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - ACCOUNTS_MAPPER_AMOUNT=3
+    - ACCOUNTS_MAPPER_PREFIX=accounts_mapper
+    - THREE_CHAIN_AMOUNT=3
+    - THREE_CHAIN_PREFIX=three_chain
+  accounts_mapper_2:
+    build:
+      context: ./src/
+      dockerfile: accounts_mapper/Dockerfile
+    container_name: accounts_mapper_2
+    depends_on: 
+    - three_chain_0
+    - three_chain_1
+    - three_chain_2
+    environment:
+    - ID=2
+    - INPUT_QUEUE=q4_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - ACCOUNTS_MAPPER_AMOUNT=3
+    - ACCOUNTS_MAPPER_PREFIX=accounts_mapper
+    - THREE_CHAIN_AMOUNT=3
+    - THREE_CHAIN_PREFIX=three_chain
+  three_chain_0:
+    build:
+      context: ./src/
+      dockerfile: three_chain/Dockerfile
+    container_name: three_chain_0
+    depends_on: 
+    - q4_join
+    environment:
+    - ID=0
+    - OUTPUT_QUEUE=three_chain_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - THREE_CHAIN_AMOUNT=3
+    - THREE_CHAIN_PREFIX=three_chain
+    - ACCOUNTS_MAPPER_AMOUNT=3
+  three_chain_1:
+    build:
+      context: ./src/
+      dockerfile: three_chain/Dockerfile
+    container_name: three_chain_1
+    depends_on: 
+    - q4_join
+    environment:
+    - ID=1
+    - OUTPUT_QUEUE=three_chain_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - THREE_CHAIN_AMOUNT=3
+    - THREE_CHAIN_PREFIX=three_chain
+    - ACCOUNTS_MAPPER_AMOUNT=3
+  three_chain_2:
+    build:
+      context: ./src/
+      dockerfile: three_chain/Dockerfile
+    container_name: three_chain_2
+    depends_on: 
+    - q4_join
+    environment:
+    - ID=2
+    - OUTPUT_QUEUE=three_chain_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - THREE_CHAIN_AMOUNT=3
+    - THREE_CHAIN_PREFIX=three_chain
+    - ACCOUNTS_MAPPER_AMOUNT=3
+  q4_join:
+    build:
+      context: ./src/
+      dockerfile: q4_join/Dockerfile
+    container_name: q4_join
+    depends_on: 
+    - gateway
+    environment:
+    - INPUT_QUEUE=three_chain_queue
+    - OUTPUT_QUEUE=results_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - THREE_CHAIN_AMOUNT=3
+    - SCATTER_GATHER_TRAN_THRESHOLD=5
 
   # QUERY 5
 

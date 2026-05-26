@@ -15,7 +15,7 @@ SERVER_HOST = os.environ["SERVER_HOST"]
 SERVER_PORT = int(os.environ["SERVER_PORT"])
 
 # TODO increase to 5
-_QUERIES_COUNT = 3
+_QUERIES_COUNT = 4
 
 class Client:
 
@@ -128,6 +128,20 @@ class Client:
         logging.info("Receiving Q3 end")
         self.finished_queries += 1
 
+    def _process_q4_laundering_acc(self, laundering_acc):
+        logging.info("Receiving Q4 laundering account result")
+        
+        bank_id, account = laundering_acc
+        account_hex = format(account, "X")
+        output_row = [bank_id, account_hex]
+        
+        csv_writer = self.csv_writers[3]
+        csv_writer.writerow(output_row)
+    
+    def _process_q4_end(self):
+        logging.info("Receiving Q4 end")
+        self.finished_queries += 1
+
     def recv_results(self):
         while self.finished_queries < _QUERIES_COUNT:
             logging.info("Receiving result")
@@ -148,7 +162,11 @@ class Client:
                 self.process_q3_result_tran(content)
             elif msg_type == protocol.external.MsgType.Q3_END:
                 self.process_q3_end()
-            # TODO: Complete for Q4 and Q5
+            elif msg_type == protocol.external.MsgType.Q4_LAUNDERING_ACC:
+                self._process_q4_laundering_acc(content)
+            elif msg_type == protocol.external.MsgType.Q4_END:
+                self._process_q4_end()
+            # TODO: Complete for Q5
             else:
                 raise TypeError(f"Message type {msg_type} not supported")
 
