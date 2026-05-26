@@ -1,10 +1,16 @@
 from common.protocol.internal import MsgEnvelope, MsgType
-from common.protocol.internal_messages import Transaction
+from common.protocol.internal_messages import BankRecord, Transaction
 
 class MessageHandler:
 
     def __init__(self, client_id):
         self.client_id = client_id
+
+    def serialize_account_message(self, data):
+        [bank_name, bank_id, _, _, _] = data
+        bank = BankRecord(bank_id, bank_name)
+        message = MsgEnvelope(self.client_id, BankRecord.MESSAGE_TYPE, bank.serialize())
+        return message.serialize()
     
     def serialize_data_message(self, data):
         [timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format] = data

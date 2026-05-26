@@ -11,6 +11,7 @@ from common import protocol
 from common.protocol.common_enums import PaymentFormat
 
 INPUT_FILE = os.environ["INPUT_FILE"]
+ACCOUNTS_FILE = os.environ["ACCOUNTS_FILE"]
 OUTPUT_FILE_PREFIX = os.environ["OUTPUT_FILE_PREFIX"]
 SERVER_HOST = os.environ["SERVER_HOST"]
 SERVER_PORT = int(os.environ["SERVER_PORT"])
@@ -49,9 +50,9 @@ class Client:
         if self.server_socket:
             self.server_socket.shutdown(socket.SHUT_RDWR)
 
-    def send_tran_records(self, input_file):
+    def send_tran_records(self):
         logging.info("Sending transactions records")
-        with open(input_file, newline="\n") as csvfile:
+        with open(INPUT_FILE, newline="\n") as csvfile:
             csv_reader = csv.reader(csvfile, delimiter=",", quotechar='"')
             next(csv_reader, None) # Ignore header
             for row in csv_reader:
@@ -59,6 +60,24 @@ class Client:
                 protocol.external.send_msg(
                     self.server_socket, protocol.external.MsgType.TRAN_RECORD,
                     timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format
+                )
+                protocol.external.recv_msg(self.server_socket)
+
+        protocol.external.send_msg(
+            self.server_socket, protocol.external.MsgType.END_OF_RECORDS
+        )
+        protocol.external.recv_msg(self.server_socket)
+
+    def send_acoount_records(self):
+        logging.info("Sending transactions records")
+        with open(ACCOUNTS_FILE, newline="\n") as csvfile:
+            csv_reader = csv.reader(csvfile, delimiter=",", quotechar='"')
+            next(csv_reader, None) # Ignore header
+            for row in csv_reader:
+                [bank_name, bank_id, account_number, entity_id, entity_name] = row
+                protocol.external.send_msg(
+                    self.server_socket, protocol.external.MsgType.ACCOUNT_RECORD,
+                    bank_name, bank_id, account_number, entity_id, entity_name
                 )
                 protocol.external.recv_msg(self.server_socket)
 
@@ -188,7 +207,8 @@ def main() -> int:
     try:
         client.connect(SERVER_HOST, SERVER_PORT)
         client.initialize_output_files()
-        client.send_tran_records(INPUT_FILE)
+        client.send_acoount_records()
+        client.send_tran_records()
         client.recv_results()
     except socket.error:
         if not client.closed:

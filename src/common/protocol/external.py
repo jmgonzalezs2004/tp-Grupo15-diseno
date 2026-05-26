@@ -4,21 +4,21 @@ from socket import socket
 from datetime import datetime, timezone
 
 from common.protocol import serialization
-from common.protocol.serialization import MemoryReader
 from common.protocol.common_enums import Currency, PaymentFormat
 
 
 class MsgType(IntEnum):
-    TRAN_RECORD = 1
-    Q1_TRAN = 2
-    Q1_END = 3
-    Q2_RESULT = 4
-    Q2_END = 5
-    Q3_RESULT_TRAN = 6
-    Q3_END = 7
-    Q4_LAUNDERING_ACC = 8
-    Q4_END = 9
-    Q5_RESULT = 10
+    ACCOUNT_RECORD = 1
+    TRAN_RECORD = 2
+    Q1_TRAN = 3
+    Q1_END = 4
+    Q2_RESULT = 5
+    Q2_END = 6
+    Q3_RESULT_TRAN = 7
+    Q3_END = 8
+    Q4_LAUNDERING_ACC = 9
+    Q4_END = 10
+    Q5_RESULT = 11
     ACK = 15
     END_OF_RECORDS = 16
 
@@ -55,6 +55,14 @@ def _recv_float(socket: socket):
 def _recv_string(socket: socket):
     strlen = _recv_uint32(socket)
     return serialization.buffer_to_string(_recv_sized(socket, strlen))
+
+def _recv_account_record(socket: socket):
+    bank_name = _recv_string(socket)
+    bank_id = _recv_uint32(socket)
+    account_number = _recv_uint64(socket)
+    entity_id = _recv_uint64(socket)
+    entity_name = _recv_string(socket)
+    return (bank_name, bank_id, account_number, entity_id, entity_name)
 
 def _recv_tran_record(socket: socket):
     timestamp = _recv_uint32(socket)
@@ -102,6 +110,7 @@ def _recv_empty(socket):
 
 
 RECV_MSG_HANDLERS = {
+    MsgType.ACCOUNT_RECORD: _recv_account_record,
     MsgType.TRAN_RECORD: _recv_tran_record,
     MsgType.Q1_TRAN: _recv_q1_tran,
     MsgType.Q1_END: _recv_empty,
@@ -121,8 +130,19 @@ def recv_msg(socket: socket):
     msg_handler = RECV_MSG_HANDLERS[msg_type]
     return (msg_type, msg_handler(socket))
 
+# Parameters come with the same format as csv dataset
+def _serialize_account_record(bank_name, bank_id, account_number, entity_id, entity_name):
+    return b"".join(
+        [
+            serialization.serialize_string(bank_name),
+            serialization.serialize_uint32(int(bank_id)),
+            serialization.serialize_uint64(int(account_number, 16)),
+            serialization.serialize_uint64(int(entity_id, 16)),
+            serialization.serialize_string(entity_name),
+        ]
+    )
 
-# Parameters come with the same format as csv datasets
+# Parameters come with the same format as csv dataset
 def _serialize_tran_record(timestamp, from_bank_id, from_account, 
                            to_bank_id, to_account, amount, currency, payment_format_id):
     dt = datetime.strptime(timestamp, "%Y/%m/%d %H:%M")
@@ -141,6 +161,10 @@ def _serialize_tran_record(timestamp, from_bank_id, from_account,
         ]
     )
 
+def _send_account_record(socket: socket, bank_name, bank_id, account_number, entity_id, entity_name):
+    msg = serialization.serialize_uint32(MsgType.ACCOUNT_RECORD)
+    msg += _serialize_account_record(bank_name, bank_id, account_number, entity_id, entity_name)
+    socket.sendall(msg)
 
 def _send_tran_record(socket: socket, timestamp, from_bank_id, from_account, 
                       to_bank_id, to_account, amount, currency, payment_format_id):
@@ -169,6 +193,7 @@ def _send_end_of_records(socket: socket):
 
 
 SEND_MSG_HANDLERS = {
+    MsgType.ACCOUNT_RECORD: _send_account_record,
     MsgType.TRAN_RECORD: _send_tran_record,
     MsgType.Q1_END: _send_q1_end,
     MsgType.Q2_END: _send_q2_end,
