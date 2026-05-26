@@ -5,7 +5,7 @@ import signal
 
 from common import middleware
 import common.protocol.internal as protocol
-from common.protocol.internal_messages import BankNameRequest, BankNameResponse
+from common.protocol.internal_messages import BankNameRequest, BankNameResponse, BankRecord
 
 ID = int(os.environ["ID"])
 MOM_HOST = os.environ["MOM_HOST"]
@@ -23,6 +23,16 @@ class Banks:
         )
         self.bank_names_by_client: dict[str, dict[int, str]] = {}
 
+    def _process_bank_record(self, client_id, bank_record: BankRecord) -> bool:
+        logging.info(f"Received bank record for client {client_id}")
+        if not client_id in self.bank_names_by_client:
+            self.bank_names_by_client[client_id] = {}
+        self.bank_names_by_client[client_id][bank_record.bank_id] = bank_record.bank_name
+    
+    def _process_eof(self, client_id) -> bool:
+        logging.info(f"Received banks EOF for client {client_id}")
+        # TODO Implement a fence to defer requests until receiving banks data
+
     def _process_request(self, client_id, bank_id: int) -> bool:
         logging.info(f"Received bank name request for client {client_id}")
         if not client_id in self.bank_names_by_client:
@@ -35,9 +45,14 @@ class Banks:
         self.output_queue.send(out_bank_name_msg.serialize())
 
     def process_messsage(self, message, ack, nack):
-        # TODO Implement a fence to defer requests until receiving banks data
+        # TODO Implement BANK_PRUNE
         envelope = protocol.MsgEnvelope.deserialize(message)
-        if envelope.msg_type == protocol.MsgType.BANK_NAME_REQUEST:
+        if envelope.msg_type == protocol.MsgType.BANK_RECORD:
+            bank_record = BankRecord.deserialize(envelope.raw_data)
+            self._process_bank_record(envelope.client_id, bank_record)
+        elif envelope.msg_type == protocol.MsgType.END_OF_RECORDS:
+            self._process_eof(envelope.client_id)
+        elif envelope.msg_type == protocol.MsgType.BANK_NAME_REQUEST:
             request = BankNameRequest.deserialize(envelope.raw_data)
             self._process_request(envelope.client_id, request.bank_id)
         else:

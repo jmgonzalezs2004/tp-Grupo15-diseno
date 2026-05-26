@@ -13,16 +13,37 @@ SERVER_PORT = int(os.environ["SERVER_PORT"])
 MOM_HOST = os.environ["MOM_HOST"]
 INPUT_QUEUE = os.environ["INPUT_QUEUE"]
 OUTPUT_QUEUE = os.environ["OUTPUT_QUEUE"]
+BANKS_AMOUNT = int(os.environ["BANKS_AMOUNT"])
+BANKS_PREFIX = os.environ["BANKS_PREFIX"]
 
+
+def _hash_bank(bank_id: int):
+    return bank_id % BANKS_AMOUNT
 
 def handle_client_request(client_socket: socket.socket, message_handler: message_handler.MessageHandler):
     output_queue = middleware.MessageMiddlewareQueueRabbitMQ(MOM_HOST, OUTPUT_QUEUE)
+    banks_exchanges: list[middleware.MessageMiddlewareExchangeRabbitMQ] = []
+    for i in range(BANKS_AMOUNT):
+        banks_exchange = middleware.MessageMiddlewareExchangeRabbitMQ(
+            MOM_HOST, BANKS_PREFIX, [f"{BANKS_PREFIX}_{i}"]
+        )
+        banks_exchanges.append(banks_exchange)
+    in_accounts_mode = True
 
     try:
         while True:
             msg_type, content = protocol.external.recv_msg(client_socket)
 
+            if msg_type == protocol.external.MsgType.ACCOUNT_RECORD:
+                assert in_accounts_mode
+                serialized_message = message_handler.serialize_account_message(content)
+                banks_exchanges[_hash_bank(content[1])].send(serialized_message)
+                protocol.external.send_msg(
+                    client_socket, protocol.external.MsgType.ACK
+                )
+
             if msg_type == protocol.external.MsgType.TRAN_RECORD:
+                assert not in_accounts_mode
                 serialized_message = message_handler.serialize_data_message(content)
                 output_queue.send(serialized_message)
                 protocol.external.send_msg(
@@ -31,19 +52,27 @@ def handle_client_request(client_socket: socket.socket, message_handler: message
 
             if msg_type == protocol.external.MsgType.END_OF_RECORDS:
                 serialized_message = message_handler.serialize_eof_message(content)
-                output_queue.send(serialized_message)
+                if in_accounts_mode:
+                    for banks_exchange in banks_exchanges:
+                        banks_exchange.send(serialized_message)
+                else:
+                    output_queue.send(serialized_message)
                 protocol.external.send_msg(
                     client_socket, protocol.external.MsgType.ACK
                 )
-                return
+                if in_accounts_mode:
+                    in_accounts_mode = False
+                else:
+                    return
             
-            # TODO BANK RECORDS
     except socket.error:
         logging.error("The connection with the server was lost")
     except Exception as e:
         logging.exception(e)
     finally:
         output_queue.close()
+        for exchange in banks_exchanges:
+            exchange.close()
 
 
 def handle_client_response(client_list: list[list[message_handler.MessageHandler, socket.socket]]):
