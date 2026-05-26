@@ -56,6 +56,12 @@ services:
     depends_on:
     - q1_join
     - bank_mapper_0
+    - mapper_and_distributor_0
+    - mapper_and_distributor_1
+    - mapper_and_distributor_2
+    - accounts_mapper_0
+    - accounts_mapper_1
+    - accounts_mapper_2
     environment:
     - ID=0
     - INPUT_QUEUE=input_queue
