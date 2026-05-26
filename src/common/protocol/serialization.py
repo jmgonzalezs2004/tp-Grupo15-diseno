@@ -4,7 +4,7 @@ _BIG_ENDIAN = '>'
 BOOL_SIZE = 1
 INT_SIZE = 4
 INT64_SIZE = 8
-FLOAT_SIZE = 4
+FLOAT_SIZE = 8
 
 def deserialize_bool(b):
     return int.from_bytes(b, byteorder="big", signed=False)
@@ -13,7 +13,7 @@ def deserialize_uint(b):
     return int.from_bytes(b, byteorder="big", signed=False)
 
 def deserialize_float(b):
-    return struct.unpack(_BIG_ENDIAN + 'f', b)[0]
+    return struct.unpack(_BIG_ENDIAN + 'd', b)[0]
 
 def buffer_to_string(b: bytes):
     return b.decode("utf-8")
@@ -56,7 +56,7 @@ class MemoryReader:
 
     def read_float(self) -> float:
         data = self.read_bytes(FLOAT_SIZE)
-        return struct.unpack(_BIG_ENDIAN + 'f', data)[0]
+        return struct.unpack(_BIG_ENDIAN + 'd', data)[0]
     
     def read_string(self) -> str:
         length = self.read_uint32()
@@ -73,7 +73,7 @@ def serialize_uint64(u: int):
     return u.to_bytes(INT64_SIZE, "big")
 
 def serialize_float(u: float):
-    return struct.pack(_BIG_ENDIAN + 'f', u)
+    return struct.pack(_BIG_ENDIAN + 'd', u)
 
 def serialize_list(l: list, item_serializer):
     return b"".join(

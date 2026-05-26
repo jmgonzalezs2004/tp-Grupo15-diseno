@@ -23,6 +23,8 @@ class Q2JoinFilter:
             MOM_HOST, OUTPUT_QUEUE
         )
 
+        self._eof_received = {} # Dict[client_id, int]
+
     def _process_bank_max(self, client_id, bank_max: Q2BankMax):
         logging.info(f"Received bank max for client {client_id}")
         # TODO Add bank names
@@ -33,11 +35,18 @@ class Q2JoinFilter:
     
     def _process_eof(self, client_id):
         logging.info(f"Received EOF for client {client_id}")
-        # TODO Wait for BANK_MAX_AMOUNT EOFs
+        if client_id not in self._eof_received:
+            self._eof_received[client_id] = 0
+        self._eof_received[client_id] += 1
+        if self._eof_received[client_id] < BANK_MAX_AMOUNT:
+            logging.info(f"Waiting for more EOF messages from client")
+            return
         
         logging.info(f"Sending END for client {client_id}")
         eof_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_END, b"")
         self.output_queue.send(eof_msg.serialize())
+
+        del self._eof_received[client_id]
 
     def process_messsage(self, message, ack, nack):
         envelope = protocol.MsgEnvelope.deserialize(message)

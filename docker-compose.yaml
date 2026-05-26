@@ -126,7 +126,180 @@ services:
     - BANK_MAX_AMOUNT=1
 
   # QUERY 3
+  mapper_and_distributor_0:
+    build:
+      context: ./src/
+      dockerfile: mapper_and_distributor/Dockerfile
+    container_name: mapper_and_distributor_0
+    depends_on:
+    - payment_format_avg_0
+    - payment_format_avg_1
+    - payment_format_avg_2
+    environment:
+    - ID=0
+    - INPUT_QUEUE=q3_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - MAPPER_AND_DISTRIBUTOR_AMOUNT=3
+    - MAPPER_AND_DISTRIBUTOR_PREFIX=mapper_and_distributor
+    - PAYMENT_FORMAT_AVG_AMOUNT=3
+    - PAYMENT_FORMAT_AVG_PREFIX=payment_format_avg
+    - AMOUNT_FILTER_AMOUNT=3
+    - AMOUNT_FILTER_PREFIX=amount_filter
+  mapper_and_distributor_1:
+    build:
+      context: ./src/
+      dockerfile: mapper_and_distributor/Dockerfile
+    container_name: mapper_and_distributor_1
+    depends_on:
+    - payment_format_avg_0
+    - payment_format_avg_1
+    - payment_format_avg_2
+    environment:
+    - ID=1
+    - INPUT_QUEUE=q3_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - MAPPER_AND_DISTRIBUTOR_AMOUNT=3
+    - MAPPER_AND_DISTRIBUTOR_PREFIX=mapper_and_distributor
+    - PAYMENT_FORMAT_AVG_AMOUNT=3
+    - PAYMENT_FORMAT_AVG_PREFIX=payment_format_avg
+    - AMOUNT_FILTER_AMOUNT=3
+    - AMOUNT_FILTER_PREFIX=amount_filter
+  mapper_and_distributor_2:
+    build:
+      context: ./src/
+      dockerfile: mapper_and_distributor/Dockerfile
+    container_name: mapper_and_distributor_2
+    depends_on:
+    - payment_format_avg_0
+    - payment_format_avg_1
+    - payment_format_avg_2
+    environment:
+    - ID=2
+    - INPUT_QUEUE=q3_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - MAPPER_AND_DISTRIBUTOR_AMOUNT=3
+    - MAPPER_AND_DISTRIBUTOR_PREFIX=mapper_and_distributor
+    - PAYMENT_FORMAT_AVG_AMOUNT=3
+    - PAYMENT_FORMAT_AVG_PREFIX=payment_format_avg
+    - AMOUNT_FILTER_AMOUNT=3
+    - AMOUNT_FILTER_PREFIX=amount_filter
+  payment_format_avg_0:
+    build:
+      context: ./src/
+      dockerfile: payment_format_avg/Dockerfile
+    container_name: payment_format_avg_0
+    depends_on:
+    - amount_filter_0
+    - amount_filter_1
+    - amount_filter_2
+    environment:
+    - ID=0
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - PAYMENT_FORMAT_AVG_AMOUNT=3
+    - PAYMENT_FORMAT_AVG_PREFIX=payment_format_avg
+    - AMOUNT_FILTER_AMOUNT=3
+    - AMOUNT_FILTER_PREFIX=amount_filter
+    - MAPPER_AND_DISTRIBUTOR_AMOUNT=3
+  payment_format_avg_1:
+    build:
+      context: ./src/
+      dockerfile: payment_format_avg/Dockerfile
+    container_name: payment_format_avg_1
+    depends_on:
+    - amount_filter_0
+    - amount_filter_1
+    - amount_filter_2
+    environment:
+    - ID=1
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - PAYMENT_FORMAT_AVG_AMOUNT=3
+    - PAYMENT_FORMAT_AVG_PREFIX=payment_format_avg
+    - AMOUNT_FILTER_AMOUNT=3
+    - AMOUNT_FILTER_PREFIX=amount_filter
+    - MAPPER_AND_DISTRIBUTOR_AMOUNT=3
+  payment_format_avg_2:
+    build:
+      context: ./src/
+      dockerfile: payment_format_avg/Dockerfile
+    container_name: payment_format_avg_2
+    depends_on:
+    - amount_filter_0
+    - amount_filter_1
+    - amount_filter_2
+    environment:
+    - ID=2
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - PAYMENT_FORMAT_AVG_AMOUNT=3
+    - PAYMENT_FORMAT_AVG_PREFIX=payment_format_avg
+    - AMOUNT_FILTER_AMOUNT=3
+    - AMOUNT_FILTER_PREFIX=amount_filter
+    - MAPPER_AND_DISTRIBUTOR_AMOUNT=3
+  amount_filter_0:
+    build:
+      context: ./src/
+      dockerfile: amount_filter/Dockerfile
+    container_name: amount_filter_0
+    depends_on:
+    - q3_join
+    environment:
+    - ID=0
+    - OUTPUT_QUEUE=amount_filter_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - AMOUNT_FILTER_AMOUNT=3
+    - AMOUNT_FILTER_PREFIX=amount_filter
+    - PAYMENT_FORMAT_AVG_AMOUNT=3
+  amount_filter_1:
+    build:
+      context: ./src/
+      dockerfile: amount_filter/Dockerfile
+    container_name: amount_filter_1
+    depends_on:
+    - q3_join
+    environment:
+    - ID=1
+    - OUTPUT_QUEUE=amount_filter_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - AMOUNT_FILTER_AMOUNT=3
+    - AMOUNT_FILTER_PREFIX=amount_filter
+    - PAYMENT_FORMAT_AVG_AMOUNT=3
+  amount_filter_2:
+    build:
+      context: ./src/
+      dockerfile: amount_filter/Dockerfile
+    container_name: amount_filter_2
+    depends_on:
+    - q3_join
+    environment:
+    - ID=2
+    - OUTPUT_QUEUE=amount_filter_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - AMOUNT_FILTER_AMOUNT=3
+    - AMOUNT_FILTER_PREFIX=amount_filter
+    - PAYMENT_FORMAT_AVG_AMOUNT=3
+  q3_join:
+    build:
+      context: ./src/
+      dockerfile: q3_join/Dockerfile
+    container_name: q3_join
+    depends_on: 
+    - gateway
+    environment:
+    - INPUT_QUEUE=amount_filter_queue
+    - OUTPUT_QUEUE=results_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - AMOUNT_FILTER_AMOUNT=3
 
   # QUERY 4
 
   # QUERY 5
+

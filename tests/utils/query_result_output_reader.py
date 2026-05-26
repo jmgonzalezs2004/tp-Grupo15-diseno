@@ -25,15 +25,15 @@ class QueryResultOutputReader:
         [from_bank_id, from_account, to_bank_id, to_account, amount] = row
         return [int(from_bank_id), from_account, int(to_bank_id), to_account, float(amount)]
     
-    # TODO: Change for bank name
+    # TODO: Row should be [from_bank_name, account, from_bank_id, amount]
     def _parse_q2_output(self, row):
-        [from_bank_id, account, amount] = row
-        return [int(from_bank_id), account, float(amount)]
+        [from_bank_name, account, amount] = row
+        return [from_bank_name, account, float(amount)]
 
     def _parse_q3_output(self, row):
-        [from_bank_id, from_account, amount, payment_format] = row
-        return [int(from_bank_id), from_account, float(amount), payment_format]
-    
+        [from_bank_id, from_account, payment_format, amount] = row
+        return [int(from_bank_id), from_account, payment_format, float(amount)]
+
     def _parse_q4_output(self, row):
         [from_bank_id, from_account] = row
         return [int(from_bank_id), from_account]
