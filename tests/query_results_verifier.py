@@ -26,7 +26,7 @@ class QueryResultsVerifier:
         self._store_bank_names() 
 
         build_input_query_results_method = getattr(self, f"_build_input_q{query_number}_results")
-        expected_query_results = build_input_query_results_method(self._input_file_name)
+        expected_query_results = build_input_query_results_method()
 
         output_query_results = self._read_output_query_results(f"{self._output_file_prefix_name}{query_number}.csv", query_number)
 
@@ -51,10 +51,10 @@ class QueryResultsVerifier:
             if q_result_output_reader:
                 q_result_output_reader.close()
 
-    def _build_input_q1_results(self, input_file):
+    def _build_input_q1_results(self):
         tran_reader = None
         try:
-            tran_reader = TransactionsReader(input_file)
+            tran_reader = TransactionsReader(self._input_file_name)
             input_q1_results = []
             for transaction_item in iter(tran_reader.next_transaction, None):
                 # ---- QUERY 1 PROCESSING ----
@@ -84,10 +84,10 @@ class QueryResultsVerifier:
             if tran_reader:
                 tran_reader.close()
 
-    def _build_input_q2_results(self, input_file):
+    def _build_input_q2_results(self):
         tran_reader = None
         try:
-            tran_reader = TransactionsReader(input_file)
+            tran_reader = TransactionsReader(self._input_file_name)
             max_tran_per_bank = {}
             for transaction_item in iter(tran_reader.next_transaction, None):
                 # ---- QUERY 2 PROCESSING ----
@@ -120,10 +120,10 @@ class QueryResultsVerifier:
             if tran_reader:
                 tran_reader.close()
 
-    def _build_input_q3_results(self, input_file):
+    def _build_input_q3_results(self):
         tran_reader = None
         try:
-            tran_reader = TransactionsReader(input_file)
+            tran_reader = TransactionsReader(self._input_file_name)
 
             from_preceding_dt = int(datetime(2022, 9, 1, tzinfo=UTC).timestamp())
             to_preceding_dt = int(datetime(2022, 9, 5, 23, 59, 59, tzinfo=UTC).timestamp())
@@ -179,10 +179,10 @@ class QueryResultsVerifier:
             if tran_reader:
                 tran_reader.close()
 
-    def _build_input_q4_results(self, input_file):
+    def _build_input_q4_results(self):
         tran_reader = None
         try:
-            tran_reader = TransactionsReader(input_file)
+            tran_reader = TransactionsReader(self._input_file_name)
 
             from_dt = int(datetime(2022, 9, 1, tzinfo=UTC).timestamp())
             to_dt = int(datetime(2022, 9, 5, 23, 59, 59, tzinfo=UTC).timestamp())
@@ -253,11 +253,11 @@ class QueryResultsVerifier:
             if tran_reader:
                 tran_reader.close()
 
-    def _build_input_q5_results(self, input_file):
+    def _build_input_q5_results(self):
         tran_reader = None
         try:
-            tran_reader = TransactionsReader(input_file)
-            
+            tran_reader = TransactionsReader(self._input_file_name)
+
             from_dt = int(datetime(2022, 9, 1, tzinfo=UTC).timestamp())
             to_dt = int(datetime(2022, 9, 5, 23, 59, 59, tzinfo=UTC).timestamp())
             
