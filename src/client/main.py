@@ -8,14 +8,14 @@ from typing import TextIO
 from _csv import Writer as CsvWriter
 
 from common import protocol
+from common.protocol.common_enums import PaymentFormat
 
 INPUT_FILE = os.environ["INPUT_FILE"]
 OUTPUT_FILE_PREFIX = os.environ["OUTPUT_FILE_PREFIX"]
 SERVER_HOST = os.environ["SERVER_HOST"]
 SERVER_PORT = int(os.environ["SERVER_PORT"])
 
-# TODO increase to 5
-_QUERIES_COUNT = 4
+_QUERIES_COUNT = 5
 
 class Client:
 
@@ -115,10 +115,9 @@ class Client:
 
     def process_q3_result_tran(self, tran):
         logging.info("Receiving Q3 transaction result")
-        
         from_bank_id, from_account, payment_format_id, amount = tran
         from_account_hex = format(from_account, "X")
-        payment_format_str = protocol.common_enums.PaymentFormat.to_str(payment_format_id)
+        payment_format_str = PaymentFormat.to_str(payment_format_id)
         output_row = [from_bank_id, from_account_hex, payment_format_str, amount]
         
         csv_writer = self.csv_writers[2]
@@ -140,6 +139,13 @@ class Client:
     
     def _process_q4_end(self):
         logging.info("Receiving Q4 end")
+        self.finished_queries += 1
+
+    def _process_q5_result(self, count):
+        logging.info("Receiving Q5 count result")
+        output_row = [count]
+        csv_writer = self.csv_writers[4]
+        csv_writer.writerow(output_row)
         self.finished_queries += 1
 
     def recv_results(self):
@@ -166,7 +172,8 @@ class Client:
                 self._process_q4_laundering_acc(content)
             elif msg_type == protocol.external.MsgType.Q4_END:
                 self._process_q4_end()
-            # TODO: Complete for Q5
+            elif msg_type == protocol.external.MsgType.Q5_RESULT:
+                self._process_q5_result(content)
             else:
                 raise TypeError(f"Message type {msg_type} not supported")
 

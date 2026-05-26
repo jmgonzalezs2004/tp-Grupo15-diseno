@@ -504,49 +504,6 @@ class Q5Transaction(SerializableMessage):
         )
 
 @dataclass
-class Q5RateRequest(SerializableMessage):
-    MESSAGE_TYPE: ClassVar[int] = MsgType.Q5_RATE_REQUEST
-    timestamp: int
-    currency_id: Currency
-
-    def serialize(self) -> bytes:
-        return b"".join([
-            serialization.serialize_uint32(self.timestamp),
-            serialization.serialize_uint32(self.currency_id),
-        ])
-
-    @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
-        return cls(
-            timestamp=reader.read_uint32(),
-            currency_id=Currency(reader.read_uint32()),
-        )
-    
-@dataclass
-class Q5RateResponse(SerializableMessage):
-    MESSAGE_TYPE: ClassVar[int] = MsgType.Q5_RATE_RESPONSE
-    timestamp: int
-    currency_id: Currency
-    dollar_exchange_rate: float
-
-    def serialize(self) -> bytes:
-        return b"".join([
-            serialization.serialize_uint32(self.timestamp),
-            serialization.serialize_uint32(self.currency_id),
-            serialization.serialize_float(self.dollar_exchange_rate),
-        ])
-
-    @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
-        return cls(
-            timestamp=reader.read_uint32(),
-            currency_id=Currency(reader.read_uint32()),
-            dollar_exchange_rate=reader.read_float(),
-        )
-
-@dataclass
 class Q5Count(SerializableMessage):
     MESSAGE_TYPE: ClassVar[int] = MsgType.Q5_COUNT
     count: int

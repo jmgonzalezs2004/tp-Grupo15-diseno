@@ -62,6 +62,7 @@ services:
     - accounts_mapper_0
     - accounts_mapper_1
     - accounts_mapper_2
+    - convertion_filter_0
     environment:
     - ID=0
     - INPUT_QUEUE=input_queue
@@ -422,4 +423,31 @@ services:
     - SCATTER_GATHER_TRAN_THRESHOLD=5
 
   # QUERY 5
-
+  convertion_filter_0:
+    build:
+      context: ./src/
+      dockerfile: convertion_filter/Dockerfile
+    container_name: convertion_filter_0
+    depends_on: 
+    - q5_join
+    environment:
+    - ID=0
+    - INPUT_QUEUE=q5_queue
+    - OUTPUT_QUEUE=q5_join_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - CONV_FILTER_AMOUNT=1
+    - MAX_USD_AMOUNT=1.0
+  q5_join:
+    build:
+      context: ./src/
+      dockerfile: q5_join/Dockerfile
+    container_name: q5_join
+    depends_on: 
+    - gateway
+    environment:
+    - INPUT_QUEUE=q5_join_queue
+    - OUTPUT_QUEUE=results_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - CONV_FILTER_AMOUNT=1
