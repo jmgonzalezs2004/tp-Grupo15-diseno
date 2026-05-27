@@ -1,14 +1,14 @@
-import multiprocessing
+import threading
 
 class ClientIdGenerator:
     '''Thread-safe auto-incremental client id generator'''
 
     def __init__(self):
-        self.current = multiprocessing.Value("i", 1)
-        self.lock = multiprocessing.Lock()
+        self.current = 1
+        self.lock = threading.Lock()
 
-    def generate(self):
+    def generate(self) -> int:
         with self.lock:
-            value = self.current.value
-            self.current.value += 1
+            value = self.current
+            self.current += 1
             return value
