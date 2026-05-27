@@ -23,3 +23,12 @@ test:
 	docker compose -f docker-compose.yaml stop -t 5
 	docker compose -f docker-compose.yaml down
 .PHONY: test
+
+switch:
+	@echo Escenarios de prueba:
+	@echo "1) Un cliente, una sola réplica de cada elemento"
+	@echo "2) Un cliente, con réplica escaladas"
+	@echo "3) Múltiples clientes, con réplica escaladas" 
+	@read -p "Selecciona uno [1-3]: " option;	\
+	cp ./scenarios/$${option}.yaml docker-compose.yaml
+.PHONY: switch
