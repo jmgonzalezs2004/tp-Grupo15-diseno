@@ -119,8 +119,9 @@ class Q4Join:
         return 0
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARN)
     q4_join = Q4Join()
+    logging.getLogger().setLevel(logging.INFO)
     return q4_join.start()
 
 if __name__ == "__main__":

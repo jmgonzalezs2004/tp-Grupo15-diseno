@@ -24,7 +24,7 @@ class Banks:
         self.bank_names_by_client: dict[str, dict[int, str]] = {}
 
     def _process_bank_record(self, client_id, bank_record: BankRecord) -> bool:
-        logging.info(f"Received bank record for client {client_id}")
+        logging.debug(f"Received bank record for client {client_id}")
         if not client_id in self.bank_names_by_client:
             self.bank_names_by_client[client_id] = {}
         self.bank_names_by_client[client_id][bank_record.bank_id] = bank_record.bank_name
@@ -64,7 +64,7 @@ class Banks:
         self.stop()
 
     def stop(self):
-        logging.info("Stopping JoinFilter...")
+        logging.info("Stopping Banks...")
         self.input_exchange.close()
         self.output_queue.close()
 
@@ -76,8 +76,9 @@ def handle_sigterm(bank_max_filter: Banks):
         logging.error(e)
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARN)
     bank_max_filter = Banks()
+    logging.getLogger().setLevel(logging.INFO)
     signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(bank_max_filter))
     bank_max_filter.start()
 

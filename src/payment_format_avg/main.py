@@ -129,8 +129,9 @@ class PaymentFormatAvg:
         return 0
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARN)
     payment_format_avg = PaymentFormatAvg()
+    logging.getLogger().setLevel(logging.INFO)
     return payment_format_avg.start()
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ class ConvertionFilter:
         self.count_by_client: dict[int, int] = {}
 
     def _process_tran(self, client_id, tran_data: bytes) -> bool:
-        logging.info(f"Received transaction for client {client_id}")
+        logging.debug(f"Received transaction for client {client_id}")
         tran = Q5Transaction.deserialize(tran_data)
         usd_amount = self.usd_converter.convert_to_usd(tran.timestamp, tran.currency_id.label, tran.amount)
         if usd_amount < MAX_USD_AMOUNT:
@@ -67,8 +67,9 @@ def handle_sigterm(bank_mapper: ConvertionFilter):
         logging.error(e)
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARN)
     bank_mapper = ConvertionFilter()
+    logging.getLogger().setLevel(logging.INFO)
     signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(bank_mapper))
     bank_mapper.start()
 

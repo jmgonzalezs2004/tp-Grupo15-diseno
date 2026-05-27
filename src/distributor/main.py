@@ -16,8 +16,7 @@ Q4_QUEUE = os.environ["Q4_QUEUE"]
 Q5_QUEUE = os.environ["Q5_QUEUE"]
 
 
-# Unconvenient naming convention
-class FilterFilter:
+class Distributor:
     def __init__(self):
         self.input_queue = middleware.MessageMiddlewareQueueRabbitMQ(
             MOM_HOST, INPUT_QUEUE
@@ -52,25 +51,25 @@ class FilterFilter:
         target_queue.send(message.serialize())
 
     def _process_tran(self, client_id, transaction: Transaction) -> bool:
-        logging.info(f"Received transaction for client {client_id}")
+        logging.debug(f"Received transaction for client {client_id}")
         if self.q1_criteria.check(transaction):
-            logging.info(f"Sending transaction to query 1 for client {client_id}")
+            logging.debug(f"Sending transaction to query 1 for client {client_id}")
             q_tran = Q1Transaction.from_transaction(transaction)
             self._distribute_tran(client_id, q_tran, self.q1_output_queue)
         if self.q2_criteria.check(transaction):
-            logging.info(f"Sending transaction to query 2 for client {client_id}")
+            logging.debug(f"Sending transaction to query 2 for client {client_id}")
             q_tran = Q2Transaction.from_transaction(transaction)
             self._distribute_tran(client_id, q_tran, self.q2_output_queue)
         if self.q3_criteria.check(transaction):
-            logging.info(f"Sending transaction to query 3 for client {client_id}")
+            logging.debug(f"Sending transaction to query 3 for client {client_id}")
             q_tran = Q3Transaction.from_transaction(transaction)
             self._distribute_tran(client_id, q_tran, self.q3_output_queue)
         if self.q4_criteria.check(transaction):
-            logging.info(f"Sending transaction to query 4 for client {client_id}")
+            logging.debug(f"Sending transaction to query 4 for client {client_id}")
             q_tran = Q4Transaction2Acc.from_transaction(transaction)
             self._distribute_tran(client_id, q_tran, self.q4_output_queue)
         if self.q5_criteria.check(transaction):
-            logging.info(f"Sending transaction to query 5 for client {client_id}")
+            logging.debug(f"Sending transaction to query 5 for client {client_id}")
             q_tran = Q5Transaction.from_transaction(transaction)
             self._distribute_tran(client_id, q_tran, self.q5_output_queue)
 
@@ -100,7 +99,7 @@ class FilterFilter:
         self.stop()
 
     def stop(self):
-        logging.info("Stopping FilterFilter...")
+        logging.info("Stopping Distributor...")
         self.input_queue.close()
         self.q1_output_queue.close()
         self.q2_output_queue.close()
@@ -108,22 +107,23 @@ class FilterFilter:
         self.q4_output_queue.close()
         self.q5_output_queue.close()
 
-def handle_sigterm(filter_filter: FilterFilter):
+def handle_sigterm(distributor: Distributor):
     logging.info("SIGTERM received")
     try:
-        filter_filter.input_queue.stop_consuming()
+        distributor.input_queue.stop_consuming()
     except Exception as e:
         logging.error(e)
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARN)
     try:
-        filter_filter = FilterFilter()
+        distributor = Distributor()
     except ValueError as e:
         logging.error(e)
         return 1
-    signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(filter_filter))
-    filter_filter.start()
+    logging.getLogger().setLevel(logging.INFO)
+    signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(distributor))
+    distributor.start()
 
     return 0
 

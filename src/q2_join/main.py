@@ -103,7 +103,7 @@ class Q2Join:
         self.stop()
 
     def stop(self):
-        logging.info("Stopping JoinFilter...")
+        logging.info("Stopping Q2Join...")
         self.input_queue.close()
         self.output_queue.close()
 
@@ -115,8 +115,9 @@ def handle_sigterm(q2_join: Q2Join):
         logging.error(e)
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARN)
     q2_join = Q2Join()
+    logging.getLogger().setLevel(logging.INFO)
     signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(q2_join))
     q2_join.start()
 

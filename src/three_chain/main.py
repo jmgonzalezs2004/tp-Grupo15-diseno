@@ -116,8 +116,9 @@ class ThreeChain:
         return 0
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARN)
     three_chain = ThreeChain()
+    logging.getLogger().setLevel(logging.INFO)
     return three_chain.start()
 
 if __name__ == "__main__":

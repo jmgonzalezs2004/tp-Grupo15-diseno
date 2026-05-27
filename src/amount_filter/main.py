@@ -136,8 +136,9 @@ class AmountFilter:
         return 0
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARN)
     amount_filter = AmountFilter()
+    logging.getLogger().setLevel(logging.INFO)
     return amount_filter.start()
 
 if __name__ == "__main__":

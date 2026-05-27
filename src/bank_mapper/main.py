@@ -28,7 +28,7 @@ class BankMapper:
         return bank_id % BANK_MAX_AMOUNT
 
     def _process_tran(self, client_id, tran_data: bytes) -> bool:
-        logging.info(f"Received transaction for client {client_id}")
+        logging.debug(f"Received transaction for client {client_id}")
         tran = Q2Transaction.deserialize(tran_data)
         message = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_TRAN, tran_data)
         dst_bank_max = self.data_output_exchanges[self._hash_bank(tran.from_bank_id)]
@@ -68,8 +68,9 @@ def handle_sigterm(bank_mapper: BankMapper):
         logging.error(e)
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARN)
     bank_mapper = BankMapper()
+    logging.getLogger().setLevel(logging.INFO)
     signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(bank_mapper))
     bank_mapper.start()
 

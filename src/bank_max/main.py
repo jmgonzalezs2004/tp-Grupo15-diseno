@@ -24,7 +24,7 @@ class BankMaxFilter:
         self.max_by_bank_client: dict[str, dict[int, Q2BankMax]] = {}
 
     def _process_tran(self, client_id, transaction: Q2Transaction) -> bool:
-        logging.info(f"Received transaction for client {client_id}")
+        logging.debug(f"Received transaction for client {client_id}")
         if not client_id in self.max_by_bank_client:
             self.max_by_bank_client[client_id] = {}
         
@@ -61,7 +61,7 @@ class BankMaxFilter:
         self.stop()
 
     def stop(self):
-        logging.info("Stopping JoinFilter...")
+        logging.info("Stopping BankMaxFilter...")
         self.input_exchange.close()
         self.output_queue.close()
 
@@ -73,8 +73,9 @@ def handle_sigterm(bank_max_filter: BankMaxFilter):
         logging.error(e)
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARN)
     bank_max_filter = BankMaxFilter()
+    logging.getLogger().setLevel(logging.INFO)
     signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(bank_max_filter))
     bank_max_filter.start()
 
