@@ -1,8 +1,11 @@
+from dataclasses import dataclass
 import os
 import logging
 import csv
+import queue
 import socket
 import signal
+import threading
 import time
 from typing import TextIO
 from _csv import Writer as CsvWriter
@@ -18,8 +21,12 @@ SERVER_PORT = int(os.environ["SERVER_PORT"])
 
 _QUERIES_COUNT = 5
 
-class Client:
+@dataclass
+class OutboundMessage:
+    msg_type: protocol.external.MsgType
+    data: tuple | None = None
 
+class Client:
     def __init__(self):
         self.closed = False
         self._prev_sigterm_handler = signal.signal(signal.SIGTERM, self.handle_sigterm)
@@ -33,6 +40,40 @@ class Client:
             4: ["Bank", "Account"],
             5: ["Count"]
         }
+        self.in_ack_event = threading.Event()
+        self.outbound_queue: queue.Queue[OutboundMessage] = queue.Queue()
+        self.data_feed_thread = threading.Thread(
+            target=self._data_feed_loop,
+            daemon=True,
+            name=f"data-feed",
+        )
+        self.send_thread = threading.Thread(
+            target=self._send_loop,
+            daemon=True,
+            name=f"socket-writer",
+        )
+
+    def _send_loop(self):
+        try:
+            while not self.closed:
+                outbound_message = self.outbound_queue.get()
+                if outbound_message.data is None:
+                    protocol.external.send_msg(
+                        self.server_socket, outbound_message.msg_type,
+                    )
+                else:
+                    protocol.external.send_msg(
+                        self.server_socket, outbound_message.msg_type, 
+                        outbound_message.data
+                    )
+        except socket.error:
+            logging.error(f"Socket write error for gateway")
+        except Exception as e:
+            logging.exception(e)
+    
+    def _data_feed_loop(self):
+        self.send_acoount_records()
+        self.send_tran_records()
 
     def handle_sigterm(self, signum, frame):
         logging.info("Recieved SIGTERM signal")
@@ -41,6 +82,13 @@ class Client:
 
         if self._prev_sigterm_handler:
             self._prev_sigterm_handler(signum, frame)
+    
+    def start(self):
+        self.connect(SERVER_HOST, SERVER_PORT)
+        self.send_thread.start()
+        self.initialize_output_files()
+        self.data_feed_thread.start()
+        self.recv_results()
 
     def connect(self, server_host, server_port):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -50,6 +98,32 @@ class Client:
         if self.server_socket:
             self.server_socket.shutdown(socket.SHUT_RDWR)
 
+    def enqueue_message(self, msg_type: protocol.external.MsgType, data: tuple | None = None):
+        '''Thread-safe method that enqueues a message to be sent to gateway'''
+        if self.closed:
+            return
+        self.outbound_queue.put(OutboundMessage(msg_type, data))
+
+    def send_acoount_records(self):
+        logging.info("Sending accounts records")
+        with open(ACCOUNTS_FILE, newline="\n") as csvfile:
+            csv_reader = csv.reader(csvfile, delimiter=",", quotechar='"')
+            next(csv_reader, None) # Ignore header
+            for row in csv_reader:
+                [bank_name, bank_id, account_number, entity_id, entity_name] = row
+                self.enqueue_message(
+                    protocol.external.MsgType.ACCOUNT_RECORD,
+                    (bank_name, bank_id, account_number, entity_id, entity_name)
+                )
+                ack_received = self.in_ack_event.wait(timeout=60)
+                if not ack_received:
+                    raise RuntimeError("Timeout waiting ACK from gateway")
+
+        self.enqueue_message(protocol.external.MsgType.END_OF_RECORDS)
+        ack_received = self.in_ack_event.wait(timeout=60)
+        if not ack_received:
+            raise RuntimeError("Timeout waiting ACK from gateway")
+
     def send_tran_records(self):
         logging.info("Sending transactions records")
         with open(INPUT_FILE, newline="\n") as csvfile:
@@ -57,34 +131,18 @@ class Client:
             next(csv_reader, None) # Ignore header
             for row in csv_reader:
                 [timestamp, from_bank, from_account, to_bank, to_account, _, _, amount, currency, format, _] = row
-                protocol.external.send_msg(
-                    self.server_socket, protocol.external.MsgType.TRAN_RECORD,
-                    timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format
+                self.enqueue_message(
+                    protocol.external.MsgType.TRAN_RECORD,
+                    (timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format)
                 )
-                protocol.external.recv_msg(self.server_socket)
+                ack_received = self.in_ack_event.wait(timeout=60)
+                if not ack_received:
+                    raise RuntimeError("Timeout waiting ACK from gateway")
 
-        protocol.external.send_msg(
-            self.server_socket, protocol.external.MsgType.END_OF_RECORDS
-        )
-        protocol.external.recv_msg(self.server_socket)
-
-    def send_acoount_records(self):
-        logging.info("Sending transactions records")
-        with open(ACCOUNTS_FILE, newline="\n") as csvfile:
-            csv_reader = csv.reader(csvfile, delimiter=",", quotechar='"')
-            next(csv_reader, None) # Ignore header
-            for row in csv_reader:
-                [bank_name, bank_id, account_number, entity_id, entity_name] = row
-                protocol.external.send_msg(
-                    self.server_socket, protocol.external.MsgType.ACCOUNT_RECORD,
-                    bank_name, bank_id, account_number, entity_id, entity_name
-                )
-                protocol.external.recv_msg(self.server_socket)
-
-        protocol.external.send_msg(
-            self.server_socket, protocol.external.MsgType.END_OF_RECORDS
-        )
-        protocol.external.recv_msg(self.server_socket)
+        self.enqueue_message(protocol.external.MsgType.END_OF_RECORDS)
+        ack_received = self.in_ack_event.wait(timeout=60)
+        if not ack_received:
+            raise RuntimeError("Timeout waiting ACK from gateway")
 
     def initialize_output_files(self):
         output_dir = os.path.dirname(OUTPUT_FILE_PREFIX)
@@ -171,9 +229,7 @@ class Client:
         while self.finished_queries < _QUERIES_COUNT:
             logging.info("Receiving result")
             msg_type, content = protocol.external.recv_msg(self.server_socket)
-            protocol.external.send_msg(
-                self.server_socket, protocol.external.MsgType.ACK
-            )
+            self.enqueue_message(protocol.external.MsgType.ACK)
 
             if msg_type == protocol.external.MsgType.Q1_TRAN:
                 self.process_q1_tran(content)
@@ -205,11 +261,7 @@ def main() -> int:
     # This will be not needed when we implement the full instances tree
     time.sleep(1)
     try:
-        client.connect(SERVER_HOST, SERVER_PORT)
-        client.initialize_output_files()
-        client.send_acoount_records()
-        client.send_tran_records()
-        client.recv_results()
+        client.start()
     except socket.error:
         if not client.closed:
             logging.error("The connection with the server was lost")
