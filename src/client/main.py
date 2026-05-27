@@ -64,7 +64,7 @@ class Client:
                 else:
                     protocol.external.send_msg(
                         self.server_socket, outbound_message.msg_type, 
-                        outbound_message.data
+                        *outbound_message.data
                     )
         except socket.error:
             logging.error(f"Socket write error for gateway")
@@ -157,6 +157,7 @@ class Client:
 
     def close_output_files(self):
         for file in self.output_files:
+            file.flush()
             file.close()
         self.output_files.clear()
         self.csv_writers.clear()
@@ -227,7 +228,7 @@ class Client:
 
     def recv_results(self):
         while self.finished_queries < _QUERIES_COUNT:
-            logging.info("Receiving result")
+            logging.debug("Receiving result")
             msg_type, content = protocol.external.recv_msg(self.server_socket)
             self.enqueue_message(protocol.external.MsgType.ACK)
 
@@ -249,6 +250,8 @@ class Client:
                 self._process_q4_end()
             elif msg_type == protocol.external.MsgType.Q5_RESULT:
                 self._process_q5_result(content)
+            elif msg_type == protocol.external.MsgType.ACK:
+                self.in_ack_event.set()
             else:
                 raise TypeError(f"Message type {msg_type} not supported")
 

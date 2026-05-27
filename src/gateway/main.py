@@ -18,7 +18,7 @@ INPUT_QUEUE = os.environ["INPUT_QUEUE"]
 OUTPUT_QUEUE = os.environ["OUTPUT_QUEUE"]
 BANKS_AMOUNT = int(os.environ["BANKS_AMOUNT"])
 BANKS_PREFIX = os.environ["BANKS_PREFIX"]
-
+QUERIES_COUNT = 5
 
 def _hash_bank(bank_id: int):
     return bank_id % BANKS_AMOUNT
@@ -41,6 +41,7 @@ class ClientSession:
         self.message_handler = message_handler_instance
         self.ack_event = threading.Event()
         self.closed = threading.Event()
+        self.all_query_ends_sent = threading.Event()
 
         self.outbound_queue: queue.Queue[OutboundMessage] = queue.Queue()
 
@@ -85,28 +86,37 @@ class ClientSession:
         self.outbound_queue.put(OutboundMessage(msg_type, data))
 
     def _write_loop(self):
+        sent_query_ends = 0
+        query_end_msg_types = [protocol.external.MsgType.Q1_END,
+                               protocol.external.MsgType.Q2_END,
+                               protocol.external.MsgType.Q3_END,
+                               protocol.external.MsgType.Q4_END,
+                               protocol.external.MsgType.Q5_RESULT]
         try:
             while not self.closed.is_set():
                 outbound_message = self.outbound_queue.get()
                 self.ack_event.clear()
 
+                msg_type = outbound_message.msg_type
+                if msg_type in query_end_msg_types:
+                    sent_query_ends += 1
+                    if sent_query_ends >= QUERIES_COUNT:
+                        self.all_query_ends_sent.set()
                 if outbound_message.data is None:
                     # Used for EOF and ACK messages
                     protocol.external.send_msg(
-                        self.socket,
-                        outbound_message.msg_type,
+                        self.socket, msg_type,
                     )
                 else:
                     protocol.external.forward_msg(
-                        self.socket,
-                        outbound_message.msg_type,
-                        outbound_message.data,
+                        self.socket, msg_type, outbound_message.data,
                     )
 
-                if outbound_message.msg_type != protocol.external.MsgType.ACK:
+                if msg_type != protocol.external.MsgType.ACK:
                     ack_received = self.ack_event.wait(timeout=30)
                     if not ack_received:
                         raise RuntimeError("Timeout waiting ACK from client")
+                    
         except socket.error:
             logging.error(f"Socket write error for client {self.client_id}")
             self.close()
@@ -148,6 +158,11 @@ class ClientSession:
                         self.output_queue.send(serialized_message)
                         self.enqueue_message(protocol.external.MsgType.ACK)
                         logging.info(f"Client {self.client_id} finished upload")
+                
+                elif msg_type == protocol.external.MsgType.ACK:
+                    self.ack_event.set()
+                    if self.all_query_ends_sent.is_set():
+                        logging.info(f"Client {self.client_id} read finished")
                         return
 
                 else:
@@ -193,11 +208,7 @@ class Gateway:
                     client_id = self.client_id_generator.generate()
                     handler = message_handler.MessageHandler(client_id)
 
-                    session = ClientSession(
-                        client_id,
-                        client_socket,
-                        handler,
-                    )
+                    session = ClientSession(client_id, client_socket, handler)
 
                     with self.clients_lock:
                         self.clients[client_id] = session
@@ -302,6 +313,7 @@ class Gateway:
 
 def main():
     logging.basicConfig(level=logging.INFO)
+    logging.getLogger("pika").setLevel(logging.WARN)
     gateway = Gateway()
     gateway.start()
     return 0
