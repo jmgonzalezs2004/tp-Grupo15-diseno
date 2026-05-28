@@ -24,7 +24,7 @@ _QUERIES_COUNT = 5
 @dataclass
 class OutboundMessage:
     msg_type: protocol.external.MsgType
-    data: tuple | None = None
+    data: list | None = None
 
 class Client:
     def __init__(self):
@@ -64,7 +64,7 @@ class Client:
                 else:
                     protocol.external.send_msg(
                         self.server_socket, outbound_message.msg_type, 
-                        *outbound_message.data
+                        outbound_message.data
                     )
         except socket.error:
             logging.error(f"Socket write error for gateway")
@@ -98,49 +98,63 @@ class Client:
         if self.server_socket:
             self.server_socket.shutdown(socket.SHUT_RDWR)
 
-    def enqueue_message(self, msg_type: protocol.external.MsgType, data: tuple | None = None):
+    def enqueue_message(self, msg_type: protocol.external.MsgType, data: list | None = None):
         '''Thread-safe method that enqueues a message to be sent to gateway'''
         if self.closed:
             return
-        self.outbound_queue.put(OutboundMessage(msg_type, data))
+        if data is None:
+            self.outbound_queue.put(OutboundMessage(msg_type))
+        else:
+            self.outbound_queue.put(OutboundMessage(msg_type, data.copy()))
 
     def send_acoount_records(self):
         logging.info("Sending accounts records")
+        ACC_BATCH_SIZE = 75 # 80 bytes (estimated) per record. Payload near 6KB
         with open(ACCOUNTS_FILE, newline="\n") as csvfile:
             csv_reader = csv.reader(csvfile, delimiter=",", quotechar='"')
             next(csv_reader, None) # Ignore header
+            current_batch = []
             for row in csv_reader:
                 [bank_name, bank_id, account_number, entity_id, entity_name] = row
-                self.in_ack_event.clear()
-                self.enqueue_message(
-                    protocol.external.MsgType.ACCOUNT_RECORD,
-                    (bank_name, bank_id, account_number, entity_id, entity_name)
-                )
-                ack_received = self.in_ack_event.wait(timeout=60)
-                if not ack_received:
-                    raise RuntimeError("Timeout waiting ACK from gateway")
+                current_batch.append((bank_name, bank_id, account_number, entity_id, entity_name))
+                if len(current_batch) >= ACC_BATCH_SIZE:
+                    self._send_records_batch(protocol.external.MsgType.ACCOUNT_RECORD, current_batch)
+                    current_batch.clear()
+            
+            if len(current_batch) > 0:
+                self._send_records_batch(protocol.external.MsgType.ACCOUNT_RECORD, current_batch)
+                current_batch.clear()
 
         self.in_ack_event.clear()
         self.enqueue_message(protocol.external.MsgType.END_OF_RECORDS)
         ack_received = self.in_ack_event.wait(timeout=60)
         if not ack_received:
             raise RuntimeError("Timeout waiting ACK from gateway")
+        
+    def _send_records_batch(self, msg_type, records: list):
+        self.in_ack_event.clear()
+        self.enqueue_message(msg_type, records)
+        ack_received = self.in_ack_event.wait(timeout=60)
+        if not ack_received:
+            raise RuntimeError("Timeout waiting ACK from gateway")
 
     def send_tran_records(self):
         logging.info("Sending transactions records")
+        TRAN_BATCH_SIZE = 150 # 40 bytes per record. Payload = 6KB
         with open(INPUT_FILE, newline="\n") as csvfile:
             csv_reader = csv.reader(csvfile, delimiter=",", quotechar='"')
             next(csv_reader, None) # Ignore header
+            current_batch = []
             for row in csv_reader:
                 [timestamp, from_bank, from_account, to_bank, to_account, _, _, amount, currency, format, _] = row
-                self.in_ack_event.clear()
-                self.enqueue_message(
-                    protocol.external.MsgType.TRAN_RECORD,
-                    (timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format)
-                )
-                ack_received = self.in_ack_event.wait(timeout=60)
-                if not ack_received:
-                    raise RuntimeError("Timeout waiting ACK from gateway")
+                current_batch.append((timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format))
+                if len(current_batch) >= TRAN_BATCH_SIZE:
+                    self._send_records_batch(protocol.external.MsgType.TRAN_RECORD, current_batch)
+                    current_batch.clear()
+
+            if len(current_batch) > 0:
+                self._send_records_batch(protocol.external.MsgType.TRAN_RECORD, current_batch)
+                current_batch.clear()
 
         self.in_ack_event.clear()
         self.enqueue_message(protocol.external.MsgType.END_OF_RECORDS)
@@ -167,7 +181,7 @@ class Client:
         self.csv_writers.clear()
     
     def process_q1_tran(self, tran):
-        logging.info("Receiving Q1 transaction")
+        logging.debug("Receiving Q1 transaction")
         
         from_bank_id, from_account, to_bank_id, to_account, amount = tran
         from_account_hex = format(from_account, "X")
