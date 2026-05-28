@@ -35,7 +35,7 @@ class Client:
         self.csv_writers: list[CsvWriter] = []
         self.output_files_headers = {
             1: ["From Bank", "From Account", "To Bank", "To Account", "Amount"],
-            2: ["Bank Name", "Account", "Amount"],
+            2: ["Bank ID", "Account", "Bank Name", "Amount"],
             3: ["Bank", "Account", "Payment Format", "Amount"],
             4: ["Bank", "Account"],
             5: ["Count"]
@@ -198,9 +198,9 @@ class Client:
     def process_q2_results(self, bank_max):
         logging.info("Receiving Q2 bank max results")
         
-        from_bank_name, from_account, amount = bank_max
+        from_bank_id, from_account, from_bank_name, amount = bank_max
         from_account_hex = format(from_account, "X")
-        output_row = [from_bank_name, from_account_hex, amount]
+        output_row = [from_bank_id, from_account_hex, from_bank_name, amount]
         
         csv_writer = self.csv_writers[1]
         csv_writer.writerow(output_row)

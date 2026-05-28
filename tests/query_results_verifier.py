@@ -104,9 +104,12 @@ class QueryResultsVerifier:
             input_q2_results = []
             for bank_id, (account, amount) in max_tran_per_bank.items():
                 # ---- STORE QUERY 2 RESULT ----
+                if bank_id not in self._bank_names:
+                    continue
                 input_q2_results.append([
-                    self._bank_names.get(bank_id, "NO_NAME"),
+                    bank_id,
                     account, 
+                    self._bank_names[bank_id],
                     amount
                 ])
 
