@@ -27,7 +27,6 @@ services:
     environment:
     - INPUT_QUEUE=results_queue
     - MOM_HOST=rabbitmq
-    - OUTPUT_QUEUE=input_queue
     - PYTHONUNBUFFERED=1
     - SERVER_HOST=gateway
     - SERVER_PORT=5678
@@ -64,7 +63,8 @@ services:
     - convertion_filter_0
     environment:
     - ID=0
-    - INPUT_QUEUE=input_queue
+    - DISTRIBUTOR_AMOUNT=1
+    - DISTRIBUTOR_PREFIX=distributor
     - Q1_QUEUE=q1_queue
     - Q2_QUEUE=q2_queue
     - Q3_QUEUE=q3_queue
