@@ -6,6 +6,7 @@ services:
     container_name: client_0
     depends_on:
     - distributor_0
+    - distributor_1
     environment:
     - ACCOUNTS_FILE=/datasets/accounts_0.csv
     - INPUT_FILE=/datasets/input_0.csv
@@ -23,6 +24,7 @@ services:
     container_name: client_1
     depends_on:
     - distributor_0
+    - distributor_1
     environment:
     - ACCOUNTS_FILE=/datasets/accounts_0.csv
     - INPUT_FILE=/datasets/input_0.csv
@@ -44,11 +46,10 @@ services:
     environment:
     - INPUT_QUEUE=results_queue
     - MOM_HOST=rabbitmq
-    - OUTPUT_QUEUE=input_queue
     - PYTHONUNBUFFERED=1
     - SERVER_HOST=gateway
     - SERVER_PORT=5678
-    - DISTRIBUTOR_AMOUNT=1
+    - DISTRIBUTOR_AMOUNT=2
     - DISTRIBUTOR_PREFIX=distributor
     - BANKS_AMOUNT=1
     - BANKS_PREFIX=banks
@@ -85,7 +86,34 @@ services:
     - convertion_filter_0
     environment:
     - ID=0
-    - INPUT_QUEUE=input_queue
+    - DISTRIBUTOR_AMOUNT=2
+    - DISTRIBUTOR_PREFIX=distributor
+    - Q1_QUEUE=q1_queue
+    - Q2_QUEUE=q2_queue
+    - Q3_QUEUE=q3_queue
+    - Q4_QUEUE=q4_queue
+    - Q5_QUEUE=q5_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+  distributor_1:
+    build:
+      context: ./src/
+      dockerfile: distributor/Dockerfile
+    container_name: distributor_1
+    depends_on:
+    - q1_join
+    - bank_mapper_0
+    - mapper_and_distributor_0
+    - mapper_and_distributor_1
+    - mapper_and_distributor_2
+    - accounts_mapper_0
+    - accounts_mapper_1
+    - accounts_mapper_2
+    - convertion_filter_0
+    environment:
+    - ID=1
+    - DISTRIBUTOR_AMOUNT=2
+    - DISTRIBUTOR_PREFIX=distributor
     - Q1_QUEUE=q1_queue
     - Q2_QUEUE=q2_queue
     - Q3_QUEUE=q3_queue

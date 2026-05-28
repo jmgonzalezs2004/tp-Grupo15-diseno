@@ -9,7 +9,7 @@ services:
     environment:
     - ACCOUNTS_FILE=/datasets/accounts_0.csv
     - INPUT_FILE=/datasets/input_0.csv
-    - OUTPUT_FILE_PREFIX=/output/0/output_
+    - OUTPUT_FILE_PREFIX=/output/output_0_
     - PYTHONUNBUFFERED=1
     - SERVER_HOST=gateway
     - SERVER_PORT=5678
@@ -27,7 +27,6 @@ services:
     environment:
     - INPUT_QUEUE=results_queue
     - MOM_HOST=rabbitmq
-    - OUTPUT_QUEUE=input_queue
     - PYTHONUNBUFFERED=1
     - SERVER_HOST=gateway
     - SERVER_PORT=5678
@@ -60,15 +59,12 @@ services:
     - q1_join
     - bank_mapper_0
     - mapper_and_distributor_0
-    - mapper_and_distributor_1
-    - mapper_and_distributor_2
     - accounts_mapper_0
-    - accounts_mapper_1
-    - accounts_mapper_2
     - convertion_filter_0
     environment:
     - ID=0
-    - INPUT_QUEUE=input_queue
+    - DISTRIBUTOR_AMOUNT=1
+    - DISTRIBUTOR_PREFIX=distributor
     - Q1_QUEUE=q1_queue
     - Q2_QUEUE=q2_queue
     - Q3_QUEUE=q3_queue
@@ -159,58 +155,16 @@ services:
     container_name: mapper_and_distributor_0
     depends_on:
     - payment_format_avg_0
-    - payment_format_avg_1
-    - payment_format_avg_2
     environment:
     - ID=0
     - INPUT_QUEUE=q3_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - MAPPER_AND_DISTRIBUTOR_AMOUNT=3
+    - MAPPER_AND_DISTRIBUTOR_AMOUNT=1
     - MAPPER_AND_DISTRIBUTOR_PREFIX=mapper_and_distributor
-    - PAYMENT_FORMAT_AVG_AMOUNT=3
+    - PAYMENT_FORMAT_AVG_AMOUNT=1
     - PAYMENT_FORMAT_AVG_PREFIX=payment_format_avg
-    - AMOUNT_FILTER_AMOUNT=3
-    - AMOUNT_FILTER_PREFIX=amount_filter
-  mapper_and_distributor_1:
-    build:
-      context: ./src/
-      dockerfile: mapper_and_distributor/Dockerfile
-    container_name: mapper_and_distributor_1
-    depends_on:
-    - payment_format_avg_0
-    - payment_format_avg_1
-    - payment_format_avg_2
-    environment:
-    - ID=1
-    - INPUT_QUEUE=q3_queue
-    - MOM_HOST=rabbitmq
-    - PYTHONUNBUFFERED=1
-    - MAPPER_AND_DISTRIBUTOR_AMOUNT=3
-    - MAPPER_AND_DISTRIBUTOR_PREFIX=mapper_and_distributor
-    - PAYMENT_FORMAT_AVG_AMOUNT=3
-    - PAYMENT_FORMAT_AVG_PREFIX=payment_format_avg
-    - AMOUNT_FILTER_AMOUNT=3
-    - AMOUNT_FILTER_PREFIX=amount_filter
-  mapper_and_distributor_2:
-    build:
-      context: ./src/
-      dockerfile: mapper_and_distributor/Dockerfile
-    container_name: mapper_and_distributor_2
-    depends_on:
-    - payment_format_avg_0
-    - payment_format_avg_1
-    - payment_format_avg_2
-    environment:
-    - ID=2
-    - INPUT_QUEUE=q3_queue
-    - MOM_HOST=rabbitmq
-    - PYTHONUNBUFFERED=1
-    - MAPPER_AND_DISTRIBUTOR_AMOUNT=3
-    - MAPPER_AND_DISTRIBUTOR_PREFIX=mapper_and_distributor
-    - PAYMENT_FORMAT_AVG_AMOUNT=3
-    - PAYMENT_FORMAT_AVG_PREFIX=payment_format_avg
-    - AMOUNT_FILTER_AMOUNT=3
+    - AMOUNT_FILTER_AMOUNT=1
     - AMOUNT_FILTER_PREFIX=amount_filter
   payment_format_avg_0:
     build:
@@ -219,53 +173,15 @@ services:
     container_name: payment_format_avg_0
     depends_on:
     - amount_filter_0
-    - amount_filter_1
-    - amount_filter_2
     environment:
     - ID=0
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - PAYMENT_FORMAT_AVG_AMOUNT=3
+    - PAYMENT_FORMAT_AVG_AMOUNT=1
     - PAYMENT_FORMAT_AVG_PREFIX=payment_format_avg
-    - AMOUNT_FILTER_AMOUNT=3
+    - AMOUNT_FILTER_AMOUNT=1
     - AMOUNT_FILTER_PREFIX=amount_filter
-    - MAPPER_AND_DISTRIBUTOR_AMOUNT=3
-  payment_format_avg_1:
-    build:
-      context: ./src/
-      dockerfile: payment_format_avg/Dockerfile
-    container_name: payment_format_avg_1
-    depends_on:
-    - amount_filter_0
-    - amount_filter_1
-    - amount_filter_2
-    environment:
-    - ID=1
-    - MOM_HOST=rabbitmq
-    - PYTHONUNBUFFERED=1
-    - PAYMENT_FORMAT_AVG_AMOUNT=3
-    - PAYMENT_FORMAT_AVG_PREFIX=payment_format_avg
-    - AMOUNT_FILTER_AMOUNT=3
-    - AMOUNT_FILTER_PREFIX=amount_filter
-    - MAPPER_AND_DISTRIBUTOR_AMOUNT=3
-  payment_format_avg_2:
-    build:
-      context: ./src/
-      dockerfile: payment_format_avg/Dockerfile
-    container_name: payment_format_avg_2
-    depends_on:
-    - amount_filter_0
-    - amount_filter_1
-    - amount_filter_2
-    environment:
-    - ID=2
-    - MOM_HOST=rabbitmq
-    - PYTHONUNBUFFERED=1
-    - PAYMENT_FORMAT_AVG_AMOUNT=3
-    - PAYMENT_FORMAT_AVG_PREFIX=payment_format_avg
-    - AMOUNT_FILTER_AMOUNT=3
-    - AMOUNT_FILTER_PREFIX=amount_filter
-    - MAPPER_AND_DISTRIBUTOR_AMOUNT=3
+    - MAPPER_AND_DISTRIBUTOR_AMOUNT=1
   amount_filter_0:
     build:
       context: ./src/
@@ -278,39 +194,9 @@ services:
     - OUTPUT_QUEUE=amount_filter_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - AMOUNT_FILTER_AMOUNT=3
+    - AMOUNT_FILTER_AMOUNT=1
     - AMOUNT_FILTER_PREFIX=amount_filter
-    - PAYMENT_FORMAT_AVG_AMOUNT=3
-  amount_filter_1:
-    build:
-      context: ./src/
-      dockerfile: amount_filter/Dockerfile
-    container_name: amount_filter_1
-    depends_on:
-    - q3_join
-    environment:
-    - ID=1
-    - OUTPUT_QUEUE=amount_filter_queue
-    - MOM_HOST=rabbitmq
-    - PYTHONUNBUFFERED=1
-    - AMOUNT_FILTER_AMOUNT=3
-    - AMOUNT_FILTER_PREFIX=amount_filter
-    - PAYMENT_FORMAT_AVG_AMOUNT=3
-  amount_filter_2:
-    build:
-      context: ./src/
-      dockerfile: amount_filter/Dockerfile
-    container_name: amount_filter_2
-    depends_on:
-    - q3_join
-    environment:
-    - ID=2
-    - OUTPUT_QUEUE=amount_filter_queue
-    - MOM_HOST=rabbitmq
-    - PYTHONUNBUFFERED=1
-    - AMOUNT_FILTER_AMOUNT=3
-    - AMOUNT_FILTER_PREFIX=amount_filter
-    - PAYMENT_FORMAT_AVG_AMOUNT=3
+    - PAYMENT_FORMAT_AVG_AMOUNT=1
   q3_join:
     build:
       context: ./src/
@@ -323,7 +209,7 @@ services:
     - OUTPUT_QUEUE=results_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - AMOUNT_FILTER_AMOUNT=3
+    - AMOUNT_FILTER_AMOUNT=1
 
   # QUERY 4
   accounts_mapper_0:
@@ -334,51 +220,14 @@ services:
     depends_on: 
     - three_chain_0
     - three_chain_1
-    - three_chain_2
     environment:
     - ID=0
     - INPUT_QUEUE=q4_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - ACCOUNTS_MAPPER_AMOUNT=3
+    - ACCOUNTS_MAPPER_AMOUNT=1
     - ACCOUNTS_MAPPER_PREFIX=accounts_mapper
-    - THREE_CHAIN_AMOUNT=3
-    - THREE_CHAIN_PREFIX=three_chain
-  accounts_mapper_1:
-    build:
-      context: ./src/
-      dockerfile: accounts_mapper/Dockerfile
-    container_name: accounts_mapper_1
-    depends_on: 
-    - three_chain_0
-    - three_chain_1
-    - three_chain_2
-    environment:
-    - ID=1
-    - INPUT_QUEUE=q4_queue
-    - MOM_HOST=rabbitmq
-    - PYTHONUNBUFFERED=1
-    - ACCOUNTS_MAPPER_AMOUNT=3
-    - ACCOUNTS_MAPPER_PREFIX=accounts_mapper
-    - THREE_CHAIN_AMOUNT=3
-    - THREE_CHAIN_PREFIX=three_chain
-  accounts_mapper_2:
-    build:
-      context: ./src/
-      dockerfile: accounts_mapper/Dockerfile
-    container_name: accounts_mapper_2
-    depends_on: 
-    - three_chain_0
-    - three_chain_1
-    - three_chain_2
-    environment:
-    - ID=2
-    - INPUT_QUEUE=q4_queue
-    - MOM_HOST=rabbitmq
-    - PYTHONUNBUFFERED=1
-    - ACCOUNTS_MAPPER_AMOUNT=3
-    - ACCOUNTS_MAPPER_PREFIX=accounts_mapper
-    - THREE_CHAIN_AMOUNT=3
+    - THREE_CHAIN_AMOUNT=2
     - THREE_CHAIN_PREFIX=three_chain
   three_chain_0:
     build:
@@ -392,9 +241,9 @@ services:
     - OUTPUT_QUEUE=three_chain_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - THREE_CHAIN_AMOUNT=3
+    - THREE_CHAIN_AMOUNT=2
     - THREE_CHAIN_PREFIX=three_chain
-    - ACCOUNTS_MAPPER_AMOUNT=3
+    - ACCOUNTS_MAPPER_AMOUNT=1
   three_chain_1:
     build:
       context: ./src/
@@ -407,24 +256,9 @@ services:
     - OUTPUT_QUEUE=three_chain_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - THREE_CHAIN_AMOUNT=3
+    - THREE_CHAIN_AMOUNT=2
     - THREE_CHAIN_PREFIX=three_chain
-    - ACCOUNTS_MAPPER_AMOUNT=3
-  three_chain_2:
-    build:
-      context: ./src/
-      dockerfile: three_chain/Dockerfile
-    container_name: three_chain_2
-    depends_on: 
-    - q4_join
-    environment:
-    - ID=2
-    - OUTPUT_QUEUE=three_chain_queue
-    - MOM_HOST=rabbitmq
-    - PYTHONUNBUFFERED=1
-    - THREE_CHAIN_AMOUNT=3
-    - THREE_CHAIN_PREFIX=three_chain
-    - ACCOUNTS_MAPPER_AMOUNT=3
+    - ACCOUNTS_MAPPER_AMOUNT=1
   q4_join:
     build:
       context: ./src/
@@ -437,7 +271,7 @@ services:
     - OUTPUT_QUEUE=results_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - THREE_CHAIN_AMOUNT=3
+    - THREE_CHAIN_AMOUNT=2
     - SCATTER_GATHER_TRAN_THRESHOLD=5
 
   # QUERY 5

@@ -15,9 +15,10 @@ SERVER_PORT = int(os.environ["SERVER_PORT"])
 
 MOM_HOST = os.environ["MOM_HOST"]
 INPUT_QUEUE = os.environ["INPUT_QUEUE"]
-OUTPUT_QUEUE = os.environ["OUTPUT_QUEUE"]
 BANKS_AMOUNT = int(os.environ["BANKS_AMOUNT"])
 BANKS_PREFIX = os.environ["BANKS_PREFIX"]
+DISTRIBUTOR_AMOUNT = int(os.environ["DISTRIBUTOR_AMOUNT"])
+DISTRIBUTOR_PREFIX = os.environ["DISTRIBUTOR_PREFIX"]
 QUERIES_COUNT = 5
 
 def _hash_bank(bank_id: int):
@@ -45,9 +46,12 @@ class ClientSession:
 
         self.outbound_queue: queue.Queue[OutboundMessage] = queue.Queue()
 
-        self.output_queue = middleware.MessageMiddlewareQueueRabbitMQ(
-            MOM_HOST, OUTPUT_QUEUE,
-        )
+        self.distributor_exchanges: list[middleware.MessageMiddlewareExchangeRabbitMQ] = []
+        for i in range(DISTRIBUTOR_AMOUNT):
+            exchange = middleware.MessageMiddlewareExchangeRabbitMQ(
+                MOM_HOST, DISTRIBUTOR_PREFIX, [f"{DISTRIBUTOR_PREFIX}_{i}"],
+            )
+            self.distributor_exchanges.append(exchange)
 
         self.banks_exchanges: list[middleware.MessageMiddlewareExchangeRabbitMQ] = []
         for i in range(BANKS_AMOUNT):
@@ -75,7 +79,8 @@ class ClientSession:
         logging.info(f"Closing session for client {self.client_id}")
 
         self.socket.shutdown(socket.SHUT_RDWR)
-        self.output_queue.close()
+        for exchange in self.distributor_exchanges:
+            exchange.close()
         for exchange in self.banks_exchanges:
             exchange.close()
 
@@ -126,6 +131,7 @@ class ClientSession:
 
     def _read_loop(self):
         in_accounts_mode = True
+        dst_distributor = 0
         try:
             while not self.closed.is_set():
                 msg_type, content = protocol.external.recv_msg(self.socket)
@@ -133,17 +139,18 @@ class ClientSession:
                     if not in_accounts_mode:
                         raise RuntimeError("ACCOUNT_RECORD received after END_OF_RECORDS")
 
+                    self.enqueue_message(protocol.external.MsgType.ACK)
                     serialized_message = self.message_handler.serialize_account_message(content)
                     bank_id = content[1]
                     self.banks_exchanges[_hash_bank(bank_id)].send(serialized_message)
-                    self.enqueue_message(protocol.external.MsgType.ACK)
 
                 elif msg_type == protocol.external.MsgType.TRAN_RECORD:
                     if in_accounts_mode:
                         raise RuntimeError("TRAN_RECORD received before Accounts END_OF_RECORDS")
 
                     serialized_message = self.message_handler.serialize_data_message(content)
-                    self.output_queue.send(serialized_message)
+                    self.distributor_exchanges[dst_distributor].send(serialized_message)
+                    dst_distributor = (dst_distributor + 1) % DISTRIBUTOR_AMOUNT
                     self.enqueue_message(protocol.external.MsgType.ACK)
 
                 elif msg_type == protocol.external.MsgType.END_OF_RECORDS:
@@ -155,7 +162,8 @@ class ClientSession:
                         in_accounts_mode = False
                         self.enqueue_message(protocol.external.MsgType.ACK)
                     else:
-                        self.output_queue.send(serialized_message)
+                        for distributor in self.distributor_exchanges:
+                            distributor.send(serialized_message)
                         self.enqueue_message(protocol.external.MsgType.ACK)
                         logging.info(f"Client {self.client_id} finished upload")
                 
