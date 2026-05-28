@@ -37,7 +37,7 @@ class USDConverter:
             "Accept": "application/json",
         })
         try:
-            with urlopen(request, timeout=10) as response:
+            with urlopen(request, timeout=30) as response:
                 if response.status != 200:
                     raise ValueError(f"HTTP error: {response.status}")
                 data = json.loads(response.read().decode("utf-8"))
@@ -48,6 +48,7 @@ class USDConverter:
 
         if not data:
             raise ValueError(f"No conversion rate found for {currency_code} on {date}")
+        #logging.info(f"Fetch conversion rate for {currency_code} at {date} is {data[0]["rate"]}")
         return data[0]["rate"]
     
     def warmup(self, from_date: str, to_date: str):
