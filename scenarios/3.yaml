@@ -77,6 +77,7 @@ services:
     depends_on:
     - q1_join
     - bank_mapper_0
+    - bank_mapper_1
     - mapper_and_distributor_0
     - mapper_and_distributor_1
     - mapper_and_distributor_2
@@ -103,6 +104,7 @@ services:
     depends_on:
     - q1_join
     - bank_mapper_0
+    - bank_mapper_1
     - mapper_and_distributor_0
     - mapper_and_distributor_1
     - mapper_and_distributor_2
@@ -144,12 +146,32 @@ services:
     container_name: bank_mapper_0
     depends_on:
     - bank_max_0
+    - bank_max_1
     environment:
     - ID=0
     - INPUT_QUEUE=q2_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - BANK_MAX_AMOUNT=1
+    - BANK_MAPPER_AMOUNT=2
+    - BANK_MAPPER_PREFIX=bank_mapper
+    - BANK_MAX_AMOUNT=2
+    - BANK_MAX_PREFIX=bank_max
+  bank_mapper_1:
+    build:
+      context: ./src/
+      dockerfile: bank_mapper/Dockerfile
+    container_name: bank_mapper_1
+    depends_on:
+    - bank_max_0
+    - bank_max_1
+    environment:
+    - ID=1
+    - INPUT_QUEUE=q2_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - BANK_MAPPER_AMOUNT=2
+    - BANK_MAPPER_PREFIX=bank_mapper
+    - BANK_MAX_AMOUNT=2
     - BANK_MAX_PREFIX=bank_max
   bank_max_0:
     build:
@@ -163,7 +185,23 @@ services:
     - OUTPUT_QUEUE=q2_join_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - BANK_MAX_AMOUNT=1
+    - BANK_MAPPER_AMOUNT=2
+    - BANK_MAX_AMOUNT=2
+    - BANK_MAX_PREFIX=bank_max
+  bank_max_1:
+    build:
+      context: ./src/
+      dockerfile: bank_max/Dockerfile
+    container_name: bank_max_1
+    depends_on:
+    - q2_join
+    environment:
+    - ID=1
+    - OUTPUT_QUEUE=q2_join_queue
+    - MOM_HOST=rabbitmq
+    - PYTHONUNBUFFERED=1
+    - BANK_MAPPER_AMOUNT=2
+    - BANK_MAX_AMOUNT=2
     - BANK_MAX_PREFIX=bank_max
   q2_join:
     build:

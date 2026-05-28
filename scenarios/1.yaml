@@ -100,6 +100,8 @@ services:
     - INPUT_QUEUE=q2_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
+    - BANK_MAPPER_AMOUNT=1
+    - BANK_MAPPER_PREFIX=bank_mapper
     - BANK_MAX_AMOUNT=1
     - BANK_MAX_PREFIX=bank_max
   bank_max_0:
@@ -114,6 +116,7 @@ services:
     - OUTPUT_QUEUE=q2_join_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
+    - BANK_MAPPER_AMOUNT=1
     - BANK_MAX_AMOUNT=1
     - BANK_MAX_PREFIX=bank_max
   q2_join:
@@ -143,7 +146,6 @@ services:
     - OUTPUT_QUEUE=q2_join_queue
     - MOM_HOST=rabbitmq
     - PYTHONUNBUFFERED=1
-    - BANK_MAX_AMOUNT=1
     - BANKS_AMOUNT=1
     - BANKS_PREFIX=banks
 
