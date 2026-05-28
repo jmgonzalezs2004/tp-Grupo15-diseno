@@ -16,18 +16,19 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
         self.on_message_callback(body, ack_func, nack_func)
 
     def __init__(self, host, queue_name):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host))
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host, heartbeat=0))
         self.channel = self.connection.channel()
         self.queue_name = queue_name
 
-        self.channel.queue_declare(queue=self.queue_name, 
-                                   durable=True,
-                                   arguments={'x-queue-type': 'quorum'})
+        # self.channel.queue_declare(queue=self.queue_name, 
+        #                            durable=True,
+        #                            arguments={'x-queue-type': 'quorum'})
+        self.channel.queue_declare(queue=self.queue_name)
     
-    def start_consuming(self, on_message_callback):
+    def start_consuming(self, on_message_callback, prefectch=1):
         self.on_message_callback = on_message_callback
         try:
-            self.channel.basic_qos(prefetch_count=1)
+            self.channel.basic_qos(prefetch_count=prefectch)
             self.channel.basic_consume(queue=self.queue_name, 
                                        on_message_callback=self._on_message_received, 
                                        auto_ack=False)
@@ -68,7 +69,7 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
         self.on_message_callback(body, ack_func, nack_func)
     
     def __init__(self, host, exchange_name, routing_keys):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host))
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host, heartbeat=0))
         self.channel = self.connection.channel()
         self.exchange_name = exchange_name
         self.routing_keys = routing_keys
