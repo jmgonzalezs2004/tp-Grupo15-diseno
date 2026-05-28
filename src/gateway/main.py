@@ -148,10 +148,10 @@ class ClientSession:
                     if in_accounts_mode:
                         raise RuntimeError("TRAN_RECORD received before Accounts END_OF_RECORDS")
 
+                    self.enqueue_message(protocol.external.MsgType.ACK)
                     serialized_message = self.message_handler.serialize_data_message(content)
                     self.distributor_exchanges[dst_distributor].send(serialized_message)
                     dst_distributor = (dst_distributor + 1) % DISTRIBUTOR_AMOUNT
-                    self.enqueue_message(protocol.external.MsgType.ACK)
 
                 elif msg_type == protocol.external.MsgType.END_OF_RECORDS:
                     serialized_message = self.message_handler.serialize_eof_message(content)

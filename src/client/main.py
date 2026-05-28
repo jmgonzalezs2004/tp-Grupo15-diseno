@@ -111,6 +111,7 @@ class Client:
             next(csv_reader, None) # Ignore header
             for row in csv_reader:
                 [bank_name, bank_id, account_number, entity_id, entity_name] = row
+                self.in_ack_event.clear()
                 self.enqueue_message(
                     protocol.external.MsgType.ACCOUNT_RECORD,
                     (bank_name, bank_id, account_number, entity_id, entity_name)
@@ -119,6 +120,7 @@ class Client:
                 if not ack_received:
                     raise RuntimeError("Timeout waiting ACK from gateway")
 
+        self.in_ack_event.clear()
         self.enqueue_message(protocol.external.MsgType.END_OF_RECORDS)
         ack_received = self.in_ack_event.wait(timeout=60)
         if not ack_received:
@@ -131,6 +133,7 @@ class Client:
             next(csv_reader, None) # Ignore header
             for row in csv_reader:
                 [timestamp, from_bank, from_account, to_bank, to_account, _, _, amount, currency, format, _] = row
+                self.in_ack_event.clear()
                 self.enqueue_message(
                     protocol.external.MsgType.TRAN_RECORD,
                     (timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format)
@@ -139,6 +142,7 @@ class Client:
                 if not ack_received:
                     raise RuntimeError("Timeout waiting ACK from gateway")
 
+        self.in_ack_event.clear()
         self.enqueue_message(protocol.external.MsgType.END_OF_RECORDS)
         ack_received = self.in_ack_event.wait(timeout=60)
         if not ack_received:
