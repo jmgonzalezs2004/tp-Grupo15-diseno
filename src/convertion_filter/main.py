@@ -28,6 +28,8 @@ class ConvertionFilter:
         logging.debug(f"Received transaction for client {client_id}")
         tran = Q5Transaction.deserialize(tran_data)
         usd_amount = self.usd_converter.convert_to_usd(tran.timestamp, tran.currency_id, tran.amount)
+        if not usd_amount:
+            return
         if usd_amount < MAX_USD_AMOUNT:
             if not client_id in self.count_by_client:
                 self.count_by_client[client_id] = 0
@@ -51,8 +53,6 @@ class ConvertionFilter:
         ack()
 
     def start(self):
-        # API requests too slow... disabled
-        # self.usd_converter.warmup("2022-09-01", "2022-09-05")
         self.input_queue.start_consuming(self.process_messsage)
         self.stop()
 
