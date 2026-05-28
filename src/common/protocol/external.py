@@ -57,23 +57,37 @@ def _recv_string(socket: socket):
     return serialization.buffer_to_string(_recv_sized(socket, strlen))
 
 def _recv_account_record(socket: socket):
-    bank_name = _recv_string(socket)
-    bank_id = _recv_uint32(socket)
-    account_number = _recv_uint64(socket)
-    entity_id = _recv_uint64(socket)
-    entity_name = _recv_string(socket)
-    return (bank_name, bank_id, account_number, entity_id, entity_name)
+    def item_deserializer(reader: serialization.MemoryReader):
+        bank_name = reader.read_string()
+        bank_id = reader.read_uint32()
+        account_number = reader.read_uint64()
+        entity_id = reader.read_uint64()
+        entity_name = reader.read_string()
+        return (bank_name, bank_id, account_number, entity_id, entity_name)
+    
+    payload_len = _recv_uint32(socket)
+    return serialization.deserialize_list(
+        _recv_sized(socket, payload_len),
+        item_deserializer
+    )
 
 def _recv_tran_record(socket: socket):
-    timestamp = _recv_uint32(socket)
-    from_bank_id = _recv_uint32(socket)
-    from_account = _recv_uint64(socket)
-    to_bank_id = _recv_uint32(socket)
-    to_account = _recv_uint64(socket)
-    amount = _recv_float(socket)
-    currency = _recv_uint32(socket)
-    payment_format = _recv_uint32(socket)
-    return (timestamp, from_bank_id, from_account, to_bank_id, to_account, amount, currency, payment_format)
+    def item_deserializer(reader: serialization.MemoryReader):
+        timestamp = reader.read_uint32()
+        from_bank_id = reader.read_uint32()
+        from_account = reader.read_uint64()
+        to_bank_id = reader.read_uint32()
+        to_account = reader.read_uint64()
+        amount = reader.read_float()
+        currency = reader.read_uint32()
+        payment_format = reader.read_uint32()
+        return (timestamp, from_bank_id, from_account, to_bank_id, to_account, amount, currency, payment_format)
+    
+    payload_len = _recv_uint32(socket)
+    return serialization.deserialize_list(
+        _recv_sized(socket, payload_len),
+        item_deserializer
+    )
 
 def _recv_q1_tran(socket: socket):
     from_bank_id = _recv_uint32(socket)
@@ -142,6 +156,11 @@ def _serialize_account_record(bank_name, bank_id, account_number, entity_id, ent
         ]
     )
 
+def _serialize_account_batch(batch: list[tuple]):
+    return b"".join(
+        [serialization.serialize_uint32(len(batch))] + [_serialize_account_record(*item) for item in batch]
+    )
+
 # Parameters come with the same format as csv dataset
 def _serialize_tran_record(timestamp, from_bank_id, from_account, 
                            to_bank_id, to_account, amount, currency, payment_format_id):
@@ -161,16 +180,23 @@ def _serialize_tran_record(timestamp, from_bank_id, from_account,
         ]
     )
 
-def _send_account_record(socket: socket, bank_name, bank_id, account_number, entity_id, entity_name):
+def _serialize_tran_batch(batch: list[tuple]):
+    return b"".join(
+        [serialization.serialize_uint32(len(batch))] + [_serialize_tran_record(*item) for item in batch]
+    )
+
+def _send_account_record(socket: socket, batch: list):
     msg = serialization.serialize_uint32(MsgType.ACCOUNT_RECORD)
-    msg += _serialize_account_record(bank_name, bank_id, account_number, entity_id, entity_name)
+    payload = _serialize_account_batch(batch)
+    msg += serialization.serialize_uint32(len(payload))
+    msg += payload
     socket.sendall(msg)
 
-def _send_tran_record(socket: socket, timestamp, from_bank_id, from_account, 
-                      to_bank_id, to_account, amount, currency, payment_format_id):
+def _send_tran_record(socket: socket, batch: list):
     msg = serialization.serialize_uint32(MsgType.TRAN_RECORD)
-    msg += _serialize_tran_record(timestamp, from_bank_id, from_account, to_bank_id, 
-                                  to_account, amount, currency, payment_format_id)
+    payload = _serialize_tran_batch(batch)
+    msg += serialization.serialize_uint32(len(payload))
+    msg += payload
     socket.sendall(msg)
 
 def _send_q1_end(socket: socket):

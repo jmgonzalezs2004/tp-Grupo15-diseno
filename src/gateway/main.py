@@ -140,18 +140,20 @@ class ClientSession:
                         raise RuntimeError("ACCOUNT_RECORD received after END_OF_RECORDS")
 
                     self.enqueue_message(protocol.external.MsgType.ACK)
-                    serialized_message = self.message_handler.serialize_account_message(content)
-                    bank_id = content[1]
-                    self.banks_exchanges[_hash_bank(bank_id)].send(serialized_message)
+                    for batch_item in content:
+                        serialized_message = self.message_handler.serialize_account_message(batch_item)
+                        bank_id = batch_item[1]
+                        self.banks_exchanges[_hash_bank(bank_id)].send(serialized_message)
 
                 elif msg_type == protocol.external.MsgType.TRAN_RECORD:
                     if in_accounts_mode:
                         raise RuntimeError("TRAN_RECORD received before Accounts END_OF_RECORDS")
 
                     self.enqueue_message(protocol.external.MsgType.ACK)
-                    serialized_message = self.message_handler.serialize_data_message(content)
-                    self.distributor_exchanges[dst_distributor].send(serialized_message)
-                    dst_distributor = (dst_distributor + 1) % DISTRIBUTOR_AMOUNT
+                    for batch_item in content:
+                        serialized_message = self.message_handler.serialize_data_message(batch_item)
+                        self.distributor_exchanges[dst_distributor].send(serialized_message)
+                        dst_distributor = (dst_distributor + 1) % DISTRIBUTOR_AMOUNT
 
                 elif msg_type == protocol.external.MsgType.END_OF_RECORDS:
                     serialized_message = self.message_handler.serialize_eof_message(content)
