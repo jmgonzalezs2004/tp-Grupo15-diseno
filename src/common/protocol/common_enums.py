@@ -84,3 +84,23 @@ class Currency(IntEnum):
             Currency.BITCOIN.value: "Bitcoin",
         }
         return mapper.get(self, "OTHER")
+    
+    @property
+    def code(self) -> str:
+        mapper = {
+            Currency.AU_DOLLAR.value: "AUD",
+            Currency.BR_REAL.value: "BRL",
+            Currency.CA_DOLLAR.value: "CAD",
+            Currency.SWISS_FRANC.value: "CHF",
+            Currency.YUAN.value: "CNY",
+            Currency.EURO.value: "EUR",
+            Currency.UK_POUND.value: "GBP",
+            Currency.SHEKEL.value: "ILS",
+            Currency.RUPEE.value: "INR",
+            Currency.JP_YEN.value: "JPY",
+            Currency.MX_PESO.value: "MXN",
+            Currency.RUBLE.value: "RUB",
+            Currency.SAUDI_RUYAL.value: "SAR",
+            Currency.US_DOLLAR.value: "USD",
+        }
+        return mapper.get(self, "")
