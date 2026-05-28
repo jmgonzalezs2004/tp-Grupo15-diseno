@@ -3,16 +3,24 @@ from enum import IntEnum
 
 class PaymentFormat(IntEnum):
     ACH = 1
-    WIRE = 2
+    CHEQUE = 2
+    CREDIT_CARD = 3
+    WIRE = 4
+    CASH = 5
+    REINVESTMENT = 6
+    BITCOIN = 7
     OTHER = 64
-    # ...
 
     @staticmethod
     def from_str(format: str) -> "PaymentFormat":
         mapper = {
             "ACH": PaymentFormat.ACH,
-            "WIRE": PaymentFormat.WIRE
-            # ...
+            "CHEQUE": PaymentFormat.CHEQUE,
+            "CREDIT CARD": PaymentFormat.CREDIT_CARD,
+            "WIRE": PaymentFormat.WIRE,
+            "CASH": PaymentFormat.CASH,
+            "REINVESTMENT": PaymentFormat.REINVESTMENT,
+            "BITCOIN": PaymentFormat.BITCOIN,
         }
         return mapper.get(format.upper(), PaymentFormat.OTHER)
     
@@ -20,8 +28,12 @@ class PaymentFormat(IntEnum):
     def to_str(format_id: int) -> str:
         mapper = {
             PaymentFormat.ACH.value: "ACH",
-            PaymentFormat.WIRE.value: "Wire"
-            # ...
+            PaymentFormat.CHEQUE.value: "Cheque",
+            PaymentFormat.CREDIT_CARD.value: "Credit Card",
+            PaymentFormat.WIRE.value: "Wire",
+            PaymentFormat.CASH.value: "Cash",
+            PaymentFormat.REINVESTMENT.value: "Reinvestment",
+            PaymentFormat.BITCOIN.value: "Bitcoin",
         }
         return mapper.get(format_id, "OTHER")
     
@@ -104,3 +116,23 @@ class Currency(IntEnum):
             Currency.US_DOLLAR.value: "USD",
         }
         return mapper.get(self, "")
+    
+    @staticmethod
+    def from_code(code: str) -> "Currency":
+        mapper = {
+            "AUD": Currency.AU_DOLLAR,
+            "BRL": Currency.BR_REAL,
+            "CAD": Currency.CA_DOLLAR,
+            "CHF": Currency.SWISS_FRANC,
+            "CNY": Currency.YUAN,
+            "EUR": Currency.EURO,
+            "GBP": Currency.UK_POUND,
+            "ILS": Currency.SHEKEL,
+            "INR": Currency.RUPEE,
+            "JPY": Currency.JP_YEN,
+            "MXN": Currency.MX_PESO,
+            "RUB": Currency.RUBLE,
+            "SAR": Currency.SAUDI_RUYAL,
+            "USD": Currency.US_DOLLAR,
+        }
+        return mapper.get(code.upper(), Currency.OTHER)
