@@ -11,6 +11,7 @@ MOM_HOST = os.environ["MOM_HOST"]
 OUTPUT_QUEUE = os.environ["OUTPUT_QUEUE"]
 BANK_MAX_AMOUNT = int(os.environ["BANK_MAX_AMOUNT"])
 BANK_MAX_PREFIX = os.environ["BANK_MAX_PREFIX"]
+BANK_MAPPER_AMOUNT = int(os.environ["BANK_MAPPER_AMOUNT"])
 
 
 class BankMaxFilter:
@@ -21,7 +22,8 @@ class BankMaxFilter:
         self.output_queue = middleware.MessageMiddlewareQueueRabbitMQ(
             MOM_HOST, OUTPUT_QUEUE
         )
-        self.max_by_bank_client: dict[str, dict[int, Q2BankMax]] = {}
+        self.max_by_bank_client: dict[int, dict[int, Q2BankMax]] = {}
+        self._eofs_by_client: dict[int, int] = {}
 
     def _process_tran(self, client_id, transaction: Q2Transaction) -> bool:
         logging.debug(f"Received transaction for client {client_id}")
@@ -34,6 +36,12 @@ class BankMaxFilter:
     
     def _process_eof(self, client_id):
         logging.info(f"Received EOF for client {client_id}")
+        if client_id not in self._eofs_by_client:
+            self._eofs_by_client[client_id] = 0
+        self._eofs_by_client[client_id] += 1
+        if self._eofs_by_client[client_id] < BANK_MAPPER_AMOUNT:
+            logging.debug(f"Waiting for more EOF messages from client")
+            return
 
         client_max_results = list(self.max_by_bank_client.pop(client_id, {}).values())
         logging.info(f"Sending partial MAX of {len(client_max_results)} banks for client {client_id}")
@@ -44,6 +52,7 @@ class BankMaxFilter:
         logging.info(f"Sending EOF for client {client_id}")
         eof_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.END_OF_RECORDS, b"")
         self.output_queue.send(eof_msg.serialize())
+        del self._eofs_by_client[client_id]
 
     def process_messsage(self, message, ack, nack):
         envelope = protocol.MsgEnvelope.deserialize(message)
