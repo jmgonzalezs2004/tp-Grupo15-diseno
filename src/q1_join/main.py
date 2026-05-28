@@ -38,8 +38,7 @@ class Q4Join:
         Process transaction data for a client. As the transaction was already processed 
         we just need to forward it to the output queue.
         """
-
-        logging.info(f"Processing transaction data")
+        logging.debug(f"Processing transaction for client {client_id}")
         self._output_queue.send(MsgEnvelope(client_id, MsgType.Q1_TRAN, data).serialize())
 
     def _process_eof(self, client_id):
@@ -47,9 +46,8 @@ class Q4Join:
         Handle EOF messages for a client. Send a Q1_END message to the output queue 
         to indicate that all data for the client has been processed.
         """
-
-        logging.info(f"Received EOF")
-        logging.info(f"Sending Q1_END message for client")
+        logging.info(f"Received EOF for client {client_id}")
+        logging.info(f"Sending Q1_END message for client {client_id}")
         self._output_queue.send(MsgEnvelope(client_id, MsgType.Q1_END, b"").serialize())
 
     def _process_data_message(self, message, ack, nack):
@@ -82,9 +80,9 @@ class Q4Join:
         return 0
 
 def main():
-    logging.basicConfig(level=logging.WARN)
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("pika").setLevel(logging.WARN)
     q4_join = Q4Join()
-    logging.getLogger().setLevel(logging.INFO)
     return q4_join.start()
 
 if __name__ == "__main__":

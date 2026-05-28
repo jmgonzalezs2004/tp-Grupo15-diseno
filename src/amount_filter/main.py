@@ -45,8 +45,7 @@ class AmountFilter:
         Process transaction data for a client.
         Store the subsequent transactions per payment format.
         """
-
-        logging.info(f"Processing transaction data")
+        logging.debug(f"Processing transaction for client {client_id}")
         transaction = Q3TransactionSubsequent.deserialize(data)
         if client_id not in self._tran_per_payment_format:
             self._tran_per_payment_format[client_id] = {}
@@ -60,7 +59,6 @@ class AmountFilter:
         Filter subsequent transactions per payment format by the average amount / 100 and 
         send the valid transactions to the output queue.
         """
-
         logging.info(f"Processing average data")
         average = Q3Average.deserialize(data)
         if client_id not in self._tran_per_payment_format or average.payment_format_id not in self._tran_per_payment_format[client_id]:
@@ -88,8 +86,7 @@ class AmountFilter:
         send the END_OF_RECORDS message to the output queue and clean up any 
         stored state for the client.
         """
-
-        logging.info(f"Received EOF")
+        logging.info(f"Received EOF for client {client_id}")
         if client_id not in self._eof_received:
             self._eof_received[client_id] = 0
         self._eof_received[client_id] += 1
@@ -97,7 +94,7 @@ class AmountFilter:
             logging.info(f"Waiting for more EOF messages from client")
             return
 
-        logging.info(f"Sending END_OF_RECORDS message for client")
+        logging.info(f"Sending END_OF_RECORDS message for client {client_id}")
         self._output_queue.send(MsgEnvelope(client_id, MsgType.END_OF_RECORDS, b"").serialize())
 
         if client_id in self._tran_per_payment_format:
@@ -136,9 +133,9 @@ class AmountFilter:
         return 0
 
 def main():
-    logging.basicConfig(level=logging.WARN)
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("pika").setLevel(logging.WARN)
     amount_filter = AmountFilter()
-    logging.getLogger().setLevel(logging.INFO)
     return amount_filter.start()
 
 if __name__ == "__main__":

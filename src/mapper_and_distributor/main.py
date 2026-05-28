@@ -61,14 +61,13 @@ class MapperAndDistributor:
         If the transaction is not historical, we send it to node 'amount_filter' for 
         filtering by amount.
         """
-
-        logging.info(f"Processing transaction data")
+        logging.debug(f"Processing transaction for client {client_id}")
         transaction = Q3Transaction.deserialize(data)
 
         preceding_from_dt = int(datetime(2022, 9, 1, tzinfo=UTC).timestamp())
         preceding_to_dt = int(datetime(2022, 9, 5, 23, 59, 59, tzinfo=UTC).timestamp())
         if preceding_from_dt <= transaction.timestamp <= preceding_to_dt:
-            logging.info(f"Transaction is historical: sending to payment_format_avg")
+            logging.debug(f"Transaction is historical: sending to payment_format_avg")
             tran_preceding = Q3TransactionPreceding(transaction.payment_format_id, transaction.amount)
             msg = MsgEnvelope(client_id, MsgType.Q3_TRAN_PRECEDING, tran_preceding.serialize()).serialize()
             exch_idx = self._route(client_id, transaction.payment_format_id, PAYMENT_FORMAT_AVG_AMOUNT)
@@ -77,7 +76,7 @@ class MapperAndDistributor:
         subsequent_from_dt = int(datetime(2022, 9, 6, tzinfo=UTC).timestamp())
         subsequent_to_dt = int(datetime(2022, 9, 15, 23, 59, 59, tzinfo=UTC).timestamp())
         if subsequent_from_dt <= transaction.timestamp <= subsequent_to_dt:
-            logging.info(f"Transaction is subsequent: sending to amount_filter")
+            logging.debug(f"Transaction is subsequent: sending to amount_filter")
             tran_subsequent = Q3TransactionSubsequent(transaction.from_bank_id, 
                                                       transaction.from_account, 
                                                       transaction.payment_format_id, 
@@ -87,7 +86,7 @@ class MapperAndDistributor:
             self._queue_data_output_exchanges.put((msg, AMOUNT_FILTER_PREFIX, [exch_idx]))
 
     def _process_eof(self, client_id):
-        logging.info(f"Received EOF")
+        logging.info(f"Received EOF for client {client_id}")
         self._queue_data_output_exchanges.join()
         self._publish_eof(client_id)
     
@@ -211,6 +210,7 @@ class MapperAndDistributor:
 
 def main():
     logging.basicConfig(level=logging.INFO)
+    logging.getLogger("pika").setLevel(logging.WARN)
     mapper_and_distributor = MapperAndDistributor()
     return mapper_and_distributor.start()
 

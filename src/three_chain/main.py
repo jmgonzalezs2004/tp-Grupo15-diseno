@@ -45,8 +45,7 @@ class ThreeChain:
         Process incoming transaction data by deserializing it and adding it 
         to the client's outgoing transactions set.
         """
-
-        logging.info(f"Processing transaction data")
+        logging.debug(f"Processing transaction for client {client_id}")
         transaction_2acc = Q4Transaction2Acc.deserialize(data)
 
         if client_id not in self._outgoing_tran:
@@ -61,8 +60,7 @@ class ThreeChain:
         generate and emit all derived 3-account transactions, then send the final
         END_OF_RECORDS message.
         """
-
-        logging.info(f"Received EOF")
+        logging.info(f"Received EOF for client {client_id}")
         if client_id not in self._eof_received:
             self._eof_received[client_id] = 0
         self._eof_received[client_id] += 1
@@ -80,7 +78,7 @@ class ThreeChain:
                     msg = MsgEnvelope(client_id, MsgType.Q4_TRAN_3ACC, transaction_3acc.serialize()).serialize()
                     self._output_queue.send(msg)
         
-        logging.info(f"Sending END_OF_RECORDS message for client")
+        logging.info(f"Sending END_OF_RECORDS message for client {client_id}")
         self._output_queue.send(MsgEnvelope(client_id, MsgType.END_OF_RECORDS, b"").serialize())
 
         del self._outgoing_tran[client_id]
@@ -116,9 +114,9 @@ class ThreeChain:
         return 0
 
 def main():
-    logging.basicConfig(level=logging.WARN)
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("pika").setLevel(logging.WARN)
     three_chain = ThreeChain()
-    logging.getLogger().setLevel(logging.INFO)
     return three_chain.start()
 
 if __name__ == "__main__":

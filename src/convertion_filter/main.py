@@ -61,19 +61,19 @@ class ConvertionFilter:
         self.input_queue.close()
         self.output_queue.close()
 
-def handle_sigterm(bank_mapper: ConvertionFilter):
+def handle_sigterm(conversion_filter: ConvertionFilter):
     logging.info("SIGTERM received")
     try:
-        bank_mapper.input_queue.stop_consuming()
+        conversion_filter.input_queue.stop_consuming()
     except Exception as e:
         logging.error(e)
 
 def main():
-    logging.basicConfig(level=logging.WARN)
-    bank_mapper = ConvertionFilter()
-    logging.getLogger().setLevel(logging.INFO)
-    signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(bank_mapper))
-    bank_mapper.start()
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("pika").setLevel(logging.WARN)
+    conversion_filter = ConvertionFilter()
+    signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(conversion_filter))
+    conversion_filter.start()
 
     return 0
 

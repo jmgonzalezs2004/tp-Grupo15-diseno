@@ -72,9 +72,9 @@ def handle_sigterm(q5_join: Q5Join):
         logging.error(e)
 
 def main():
-    logging.basicConfig(level=logging.WARN)
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("pika").setLevel(logging.WARN)
     q5_join = Q5Join()
-    logging.getLogger().setLevel(logging.INFO)
     signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(q5_join))
     q5_join.start()
 

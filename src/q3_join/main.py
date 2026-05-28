@@ -93,9 +93,9 @@ class Q3Join:
         return 0
 
 def main():
-    logging.basicConfig(level=logging.WARN)
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("pika").setLevel(logging.WARN)
     q3_join = Q3Join()
-    logging.getLogger().setLevel(logging.INFO)
     return q3_join.start()
 
 if __name__ == "__main__":

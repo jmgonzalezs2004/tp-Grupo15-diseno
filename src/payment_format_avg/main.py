@@ -54,7 +54,7 @@ class PaymentFormatAvg:
         Store the sum and count of amounts per payment format.
         """
 
-        logging.info(f"Processing transaction data")
+        logging.debug(f"Processing transaction for client {client_id}")
         transaction = Q3TransactionPreceding.deserialize(data)
         if client_id not in self._sum_count_per_payment_format:
             self._sum_count_per_payment_format[client_id] = {}
@@ -129,9 +129,9 @@ class PaymentFormatAvg:
         return 0
 
 def main():
-    logging.basicConfig(level=logging.WARN)
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("pika").setLevel(logging.WARN)
     payment_format_avg = PaymentFormatAvg()
-    logging.getLogger().setLevel(logging.INFO)
     return payment_format_avg.start()
 
 if __name__ == "__main__":

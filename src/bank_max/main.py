@@ -82,9 +82,9 @@ def handle_sigterm(bank_max_filter: BankMaxFilter):
         logging.error(e)
 
 def main():
-    logging.basicConfig(level=logging.WARN)
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("pika").setLevel(logging.WARN)
     bank_max_filter = BankMaxFilter()
-    logging.getLogger().setLevel(logging.INFO)
     signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(bank_max_filter))
     bank_max_filter.start()
 

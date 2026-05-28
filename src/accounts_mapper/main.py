@@ -54,8 +54,7 @@ class AccountsMapper:
         Process a transaction of 2 accounts. Route the transaction by both the source 
         and destination accounts to the corresponding data output exchange.
         """
-
-        logging.info(f"Processing transaction data")
+        logging.debug(f"Processing transaction for client {client_id}")
         transaction_2acc = Q4Transaction2Acc.deserialize(data)
 
         exchange_index_source = self._route(client_id, transaction_2acc.from_acc)
@@ -65,7 +64,7 @@ class AccountsMapper:
         self._queue_data_output_exchanges.put((msg, list(set([exchange_index_source, exchange_index_dest]))))
 
     def _process_eof(self, client_id):
-        logging.info(f"Received EOF")
+        logging.info(f"Received EOF for client {client_id}")
         self._queue_data_output_exchanges.join()
         self._publish_eof(client_id)
     
@@ -74,8 +73,7 @@ class AccountsMapper:
         Publish an EOF message to the control exchange to notify that all 
         transaction records of a client were processed.
         """
-
-        logging.info(f"Publishing EOF message")
+        logging.info(f"Publishing EOF message for client {client_id}")
         msg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS_NOTIFY, b"").serialize()
         self._control_exchange_sender.send(msg)
 
@@ -100,7 +98,6 @@ class AccountsMapper:
         """
         Broadcast EOF message to the data output exchanges.
         """
-
         logging.info(f"Process EOF notification: broadcasting EOF message")
         msg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS, b"").serialize()
         self._queue_data_output_exchanges.put((msg, [i for i in range(THREE_CHAIN_AMOUNT)]))
@@ -185,6 +182,7 @@ class AccountsMapper:
 
 def main():
     logging.basicConfig(level=logging.INFO)
+    logging.getLogger("pika").setLevel(logging.WARN)
     accounts_mapper = AccountsMapper()
     return accounts_mapper.start()
 

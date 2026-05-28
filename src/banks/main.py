@@ -68,19 +68,19 @@ class Banks:
         self.input_exchange.close()
         self.output_queue.close()
 
-def handle_sigterm(bank_max_filter: Banks):
+def handle_sigterm(banks_filter: Banks):
     logging.info("SIGTERM received")
     try:
-        bank_max_filter.input_exchange.stop_consuming()
+        banks_filter.input_exchange.stop_consuming()
     except Exception as e:
         logging.error(e)
 
 def main():
-    logging.basicConfig(level=logging.WARN)
-    bank_max_filter = Banks()
-    logging.getLogger().setLevel(logging.INFO)
-    signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(bank_max_filter))
-    bank_max_filter.start()
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("pika").setLevel(logging.WARN)
+    banks_filter = Banks()
+    signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(banks_filter))
+    banks_filter.start()
 
     return 0
 

@@ -154,9 +154,9 @@ def handle_sigterm(bank_mapper: BankMapper):
         logging.error(e)
 
 def main():
-    logging.basicConfig(level=logging.WARN)
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("pika").setLevel(logging.WARN)
     bank_mapper = BankMapper()
-    logging.getLogger().setLevel(logging.INFO)
     signal.signal(signal.SIGTERM, lambda s, f: handle_sigterm(bank_mapper))
     bank_mapper.start()
 
