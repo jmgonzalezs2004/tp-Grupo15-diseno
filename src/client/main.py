@@ -96,7 +96,13 @@ class Client:
 
     def disconnect(self):
         if self.server_socket:
-            self.server_socket.shutdown(socket.SHUT_RDWR)
+            try:
+                self.server_socket.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+            self.server_socket.close()
+            self.server_socket = None
 
     def enqueue_message(self, msg_type: protocol.external.MsgType, data: list | None = None):
         '''Thread-safe method that enqueues a message to be sent to gateway'''
@@ -140,7 +146,7 @@ class Client:
 
     def send_tran_records(self):
         logging.info("Sending transactions records")
-        TRAN_BATCH_SIZE = 200 # 40 bytes per record. Payload = 8KB
+        TRAN_BATCH_SIZE = 150 # 40 bytes per record. Payload = 6KB
         with open(INPUT_FILE, newline="\n") as csvfile:
             csv_reader = csv.reader(csvfile, delimiter=",", quotechar='"')
             next(csv_reader, None) # Ignore header
@@ -210,7 +216,7 @@ class Client:
         self.finished_queries += 1
 
     def process_q3_result_tran(self, tran):
-        logging.debug("Receiving Q3 transaction result")
+        logging.info("Receiving Q3 transaction result")
         from_bank_id, from_account, payment_format_id, amount = tran
         from_account_hex = format(from_account, "X")
         payment_format_str = PaymentFormat.to_str(payment_format_id)
