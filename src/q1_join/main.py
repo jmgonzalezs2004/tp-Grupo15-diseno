@@ -67,7 +67,7 @@ class Q4Join:
                 self._input_queue.stop_consuming()
 
     def start(self):
-        self._input_queue.start_consuming(self._process_data_message)
+        self._input_queue.start_consuming(self._process_data_message, 100)
 
         try:
             self._input_queue.close()

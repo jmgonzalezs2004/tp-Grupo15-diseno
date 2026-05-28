@@ -100,7 +100,7 @@ class Q2Join:
         ack()
 
     def start(self):
-        self.input_queue.start_consuming(self.process_messsage)
+        self.input_queue.start_consuming(self.process_messsage, 100)
         self.stop()
 
     def stop(self):

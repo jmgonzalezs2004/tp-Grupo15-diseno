@@ -45,7 +45,7 @@ class Q4Join:
         structure by grouping middle accounts per (source_acc, dest_acc) pair.
         """
 
-        logging.info(f"Processing transaction data")
+        logging.debug(f"Processing transaction data")
         transaction_3acc = Q4Transaction3Acc.deserialize(data)
 
         if client_id not in self._scatter_gather:
@@ -106,7 +106,7 @@ class Q4Join:
                 self._input_queue.stop_consuming()
 
     def start(self):
-        self._input_queue.start_consuming(self._process_data_message)
+        self._input_queue.start_consuming(self._process_data_message, 100)
 
         try:
             self._input_queue.close()

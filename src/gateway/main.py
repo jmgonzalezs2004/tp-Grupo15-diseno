@@ -317,7 +317,7 @@ class Gateway:
                 nack()
                 self.input_queue.stop_consuming()
 
-        self.input_queue.start_consuming(_consume_result)
+        self.input_queue.start_consuming(_consume_result, 50)
         self.input_queue.close()
 
 
