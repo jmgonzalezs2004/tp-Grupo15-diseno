@@ -184,14 +184,16 @@ class Q2BankMax(SerializableMessage):
 @dataclass
 class Q2Result(SerializableMessage):
     MESSAGE_TYPE: ClassVar[int] = MsgType.Q2_RESULT
-    from_bank_name: str
+    from_bank_id: int
     from_account: int
+    from_bank_name: str
     amount: float
 
     def serialize(self) -> bytes:
         return b"".join([
-            serialization.serialize_string(self.from_bank_name),
+            serialization.serialize_uint32(self.from_bank_id),
             serialization.serialize_uint64(self.from_account),
+            serialization.serialize_string(self.from_bank_name),
             serialization.serialize_float(self.amount),
         ])
     
@@ -199,8 +201,9 @@ class Q2Result(SerializableMessage):
     def deserialize(cls, data: bytes):
         reader = MemoryReader(data)
         return cls(
-            from_bank_name=reader.read_string(),
+            from_bank_id=reader.read_uint32(),
             from_account=reader.read_uint64(),
+            from_bank_name=reader.read_string(),
             amount=reader.read_float(),
         )
 

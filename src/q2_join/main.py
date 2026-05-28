@@ -55,10 +55,11 @@ class Q2Join:
         logging.info(f"Received bank name response for client {client_id}")
         bank_max = self._bank_max_by_client[client_id].pop(response.bank_id)
 
-        logging.info(f"Sending query 2 result for client {client_id}")
-        result = Q2Result(response.bank_name, bank_max.from_account, bank_max.amount)
-        out_result_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_RESULT, result.serialize())
-        self.output_queue.send(out_result_msg.serialize())
+        if response.bank_name != "":
+            logging.info(f"Sending query 2 result for client {client_id}")
+            result = Q2Result(response.bank_id, bank_max.from_account, response.bank_name, bank_max.amount)
+            out_result_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_RESULT, result.serialize())
+            self.output_queue.send(out_result_msg.serialize())
 
         if self._eofs_by_client.get(client_id, 0) >= BANK_MAX_AMOUNT and len(self._bank_max_by_client[client_id]) == 0:
             # Send deferred END, as every EOF have been received

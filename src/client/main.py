@@ -35,7 +35,7 @@ class Client:
         self.csv_writers: list[CsvWriter] = []
         self.output_files_headers = {
             1: ["From Bank", "From Account", "To Bank", "To Account", "Amount"],
-            2: ["Bank Name", "Account", "Amount"],
+            2: ["Bank ID", "Account", "Bank Name", "Amount"],
             3: ["Bank", "Account", "Payment Format", "Amount"],
             4: ["Bank", "Account"],
             5: ["Count"]
@@ -96,7 +96,13 @@ class Client:
 
     def disconnect(self):
         if self.server_socket:
-            self.server_socket.shutdown(socket.SHUT_RDWR)
+            try:
+                self.server_socket.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+            self.server_socket.close()
+            self.server_socket = None
 
     def enqueue_message(self, msg_type: protocol.external.MsgType, data: list | None = None):
         '''Thread-safe method that enqueues a message to be sent to gateway'''
@@ -140,7 +146,7 @@ class Client:
 
     def send_tran_records(self):
         logging.info("Sending transactions records")
-        TRAN_BATCH_SIZE = 200 # 40 bytes per record. Payload = 8KB
+        TRAN_BATCH_SIZE = 150 # 40 bytes per record. Payload = 6KB
         with open(INPUT_FILE, newline="\n") as csvfile:
             csv_reader = csv.reader(csvfile, delimiter=",", quotechar='"')
             next(csv_reader, None) # Ignore header
@@ -198,9 +204,9 @@ class Client:
     def process_q2_results(self, bank_max):
         logging.info("Receiving Q2 bank max results")
         
-        from_bank_name, from_account, amount = bank_max
+        from_bank_id, from_account, from_bank_name, amount = bank_max
         from_account_hex = format(from_account, "X")
-        output_row = [from_bank_name, from_account_hex, amount]
+        output_row = [from_bank_id, from_account_hex, from_bank_name, amount]
         
         csv_writer = self.csv_writers[1]
         csv_writer.writerow(output_row)
@@ -210,7 +216,7 @@ class Client:
         self.finished_queries += 1
 
     def process_q3_result_tran(self, tran):
-        logging.debug("Receiving Q3 transaction result")
+        logging.info("Receiving Q3 transaction result")
         from_bank_id, from_account, payment_format_id, amount = tran
         from_account_hex = format(from_account, "X")
         payment_format_str = PaymentFormat.to_str(payment_format_id)

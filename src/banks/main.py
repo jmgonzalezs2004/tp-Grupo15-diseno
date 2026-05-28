@@ -38,7 +38,7 @@ class Banks:
         if not client_id in self.bank_names_by_client:
             self.bank_names_by_client[client_id] = {}
         
-        bank_name = self.bank_names_by_client[client_id].get(bank_id, "NO_NAME")
+        bank_name = self.bank_names_by_client[client_id].get(bank_id, "")
         logging.info(f"Sending bank name for client {client_id}")
         bank_name_msg = BankNameResponse(bank_id, bank_name)
         out_bank_name_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.BANK_NAME_RESPONSE, bank_name_msg.serialize())

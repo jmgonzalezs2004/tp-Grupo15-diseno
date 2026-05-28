@@ -98,10 +98,11 @@ def _recv_q1_tran(socket: socket):
     return (from_bank_id, from_account, to_bank_id, to_account, amount)
 
 def _recv_q2_result(socket: socket):
-    from_bank_name = _recv_string(socket)
+    from_bank_id = _recv_uint32(socket)
     from_account = _recv_uint64(socket)
+    from_bank_name = _recv_string(socket)
     amount = _recv_float(socket)
-    return (from_bank_name, from_account, amount)
+    return (from_bank_id, from_account, from_bank_name, amount)
 
 def _recv_q3_result_tran(socket: socket):
     from_bank_id = _recv_uint32(socket)
