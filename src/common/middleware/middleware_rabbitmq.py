@@ -28,7 +28,8 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
     def start_consuming(self, on_message_callback, prefectch=1):
         self.on_message_callback = on_message_callback
         try:
-            self.channel.basic_qos(prefetch_count=prefectch)
+            if prefectch > 0:
+                self.channel.basic_qos(prefetch_count=prefectch)
             self.channel.basic_consume(queue=self.queue_name, 
                                        on_message_callback=self._on_message_received, 
                                        auto_ack=False)

@@ -56,7 +56,7 @@ class Q5Join:
         ack()
 
     def start(self):
-        self.input_queue.start_consuming(self.process_messsage)
+        self.input_queue.start_consuming(self.process_messsage, 0)
         self.stop()
 
     def stop(self):
