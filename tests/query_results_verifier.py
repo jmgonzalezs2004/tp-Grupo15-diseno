@@ -279,7 +279,7 @@ class QueryResultsVerifier:
                     transaction_item.currency, 
                     transaction_item.amount
                 )
-                if not amount_usd or amount_usd >= 1:
+                if amount_usd is None or amount_usd >= 1:
                     continue
 
                 count += 1

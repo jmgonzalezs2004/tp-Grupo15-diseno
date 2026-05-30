@@ -54,7 +54,7 @@ class USDConverter:
         if not data:
             raise ValueError(f"No conversion rate found for {currency_code} on {date}")
 
-        return data[0]["rate"]
+        return 1 / data[0]["rate"]
     
     def _fetch_multiple_conversion_rates(self, date, currencies: list[Currency]) -> dict[Currency, float]:
         """
