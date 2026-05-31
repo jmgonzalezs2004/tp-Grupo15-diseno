@@ -1,111 +1,146 @@
-import requests
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
+import json
+import logging
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 
 class USDConverter:
     def __init__(self):
-        self._conversion_rates = {
-        "2022/09/01": {
-            "Australian Dollar": 1.4644,
-            "Brazil Real": 5.1805,
-            "Canadian Dollar": 1.314,
-            "Swiss Franc": 0.97999,
-            "Yuan": 6.9,
-            "Euro": 1.0002,
-            "UK Pound": 0.86272,
-            "Shekel": 3.3535,
-            "Rupee": 79.543,
-            "Yen": 139.34,
-            "Mexican Peso": 20.189,
-            "Ruble": 60.367,
-            "Saudi Riyal": 3.75,
-            "US Dollar": 1.0,
-            "Bitcoin": 19793.1,
-        },
+        self._cache: dict[str, dict[str, float]] = {
+            "2022-09-01": { "BTC": 19793.1 },
+            "2022-09-02": { "BTC": 199999.0 }, # Huh ?
+            "2022-09-03": { "BTC": 19831.4 },
+            "2022-09-04": { "BTC": 19952.7 },
+            "2022-09-05": { "BTC": 20126.1 },
+        }
+        self._currency_to_code = {
+            "Australian Dollar": "AUD",
+            "Brazil Real": "BRL",
+            "Canadian Dollar": "CAD",
+            "Swiss Franc": "CHF",
+            "Yuan": "CNY",
+            "Euro": "EUR",
+            "UK Pound": "GBP",
+            "Shekel": "ILS",
+            "Rupee": "INR",
+            "Yen": "JPY",
+            "Mexican Peso": "MXN",
+            "Ruble": "RUB",
+            "Saudi Riyal": "SAR",
+            "US Dollar": "USD",
+            "Bitcoin": "BTC",
+        }
+        self._warmup("2022-09-01", "2022-09-05")
 
-        "2022/09/02": {
-            "Australian Dollar": 1.4691,
-            "Brazil Real": 5.2035,
-            "Canadian Dollar": 1.3141,
-            "Swiss Franc": 0.98175,
-            "Yuan": 6.9035,
-            "Euro": 1.0011,
-            "UK Pound": 0.86468,
-            "Shekel": 3.3755,
-            "Rupee": 79.719,
-            "Yen": 140.11,
-            "Mexican Peso": 20.085,
-            "Ruble": 60.427,
-            "Saudi Riyal": 3.75,
-            "US Dollar": 1.0,
-            "Bitcoin": 199999.0,
-        },
+    def _fetch_conversion_rate(self, date, currency_code: str) -> float:
+        """
+        Fetch given conversion rate for a given date by making an API request.
+        """
 
-        "2022/09/03": {
-            "Australian Dollar": 1.4691,
-            "Brazil Real": 5.2056,
-            "Canadian Dollar": 1.3138,
-            "Swiss Franc": 0.98207,
-            "Yuan": 6.9046,
-            "Euro": 1.0013,
-            "UK Pound": 0.86478,
-            "Shekel": 3.3791,
-            "Rupee": 79.75,
-            "Yen": 140.17,
-            "Mexican Peso": 20.081,
-            "Ruble": 60.471,
-            "Saudi Riyal": 3.75,
-            "US Dollar": 1.0,
-            "Bitcoin": 19831.4,
-        },
+        if currency_code == "":
+            raise ValueError(f"Unsupported currency: {currency_code}")
 
-        "2022/09/04": {
-            "Australian Dollar": 1.4695,
-            "Brazil Real": 5.2082,
-            "Canadian Dollar": 1.3139,
-            "Swiss Franc": 0.98219,
-            "Yuan": 6.9047,
-            "Euro": 1.0013,
-            "UK Pound": 0.8649,
-            "Shekel": 3.3815,
-            "Rupee": 79.754,
-            "Yen": 140.22,
-            "Mexican Peso": 20.084,
-            "Ruble": 60.461,
-            "Saudi Riyal": 3.75,
-            "US Dollar": 1.0,
-            "Bitcoin": 19952.7,
-        },
+        params = urlencode({
+            "date": date,
+            "base": currency_code,
+            "quotes": "USD",
+        })
 
-        "2022/09/05": {
-            "Australian Dollar": 1.4722,
-            "Brazil Real": 5.1786,
-            "Canadian Dollar": 1.3142,
-            "Swiss Franc": 0.98273,
-            "Yuan": 6.9216,
-            "Euro": 1.0068,
-            "UK Pound": 0.86813,
-            "Shekel": 3.4006,
-            "Rupee": 79.816,
-            "Yen": 140.49,
-            "Mexican Peso": 20.018,
-            "Ruble": 60.737,
-            "Saudi Riyal": 3.75,
-            "US Dollar": 1.0,
-            "Bitcoin": 20126.1,
-        },
-    }
+        url = f"https://api.frankfurter.dev/v2/rates?{params}"
+        request = Request(url, headers={
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "application/json",
+        })
+        try:
+            with urlopen(request, timeout=30) as response:
+                if response.status != 200:
+                    raise ValueError(f"HTTP error: {response.status}")
+                data = json.loads(response.read().decode("utf-8"))
+        except HTTPError as e:
+            raise ValueError(f"HTTP error: {e.code}") from e
+        except URLError as e:
+            raise ValueError(f"Connection error: {e.reason}") from e
 
-    def convert_to_usd(self, timestamp, currency, amount):
+        if not data:
+            raise ValueError(f"No conversion rate found for {currency_code} on {date}")
+
+        return 1 / data[0]["rate"]
+    
+    def _fetch_multiple_conversion_rates(self, date) -> dict[str, float]:
+        """
+        Fetch given conversion rates for a given date by making a single API request.
+        """
+
+        currency_codes = ",".join(self._currency_to_code.values())
+
+        params = urlencode({
+            "date": date,
+            "base": "USD",
+            "quotes": currency_codes,
+        })
+
+        url = f"https://api.frankfurter.dev/v2/rates?{params}"
+        request = Request(url, headers={
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "application/json",
+        })
+        try:
+            with urlopen(request, timeout=30) as response:
+                if response.status != 200:
+                    raise ValueError(f"HTTP error: {response.status}")
+                data = json.loads(response.read().decode("utf-8"))
+        except HTTPError as e:
+            raise ValueError(f"HTTP error: {e.code}") from e
+        except URLError as e:
+            raise ValueError(f"Connection error: {e.reason}") from e
+
+        if not data:
+            raise ValueError(f"No conversion rates found for {currency_codes} on {date}")
+
+        conv_rates = {}
+        for rate_data in data:
+            quote = rate_data["quote"]
+            rate = rate_data["rate"]
+            if rate == 0:
+                continue
+            conv_rates[quote] = 1 / rate
+
+        return conv_rates
+
+    def _warmup(self, from_date: str, to_date: str):
+        """
+        Fetch conversion rates for all supported currencies for a given date range and cache them.
+        """
+
+        start_date = datetime.strptime(from_date, "%Y-%m-%d").date()
+        end_date = datetime.strptime(to_date, "%Y-%m-%d").date()
+
+        if start_date > end_date:
+            raise ValueError("from_date must be lower or equal to to_date")
+
+        current_date = start_date
+        while current_date <= end_date:
+            date_str = current_date.strftime("%Y-%m-%d")
+            conv_rates = self._fetch_multiple_conversion_rates(date_str)
+            self._cache[date_str] = { **self._cache.get(date_str, {}), **conv_rates }
+            current_date += timedelta(days=1)
+
+    def convert_to_usd(self, timestamp, currency: str, amount: float):
         if currency == "US Dollar":
             return amount
         
-        date_str = datetime.fromtimestamp(timestamp, tz=UTC).strftime("%Y/%m/%d")
-        if date_str not in self._conversion_rates:
-            return None
+        currency_code = self._currency_to_code.get(currency, "")
+        date_str = datetime.fromtimestamp(timestamp, tz=UTC).strftime("%Y-%m-%d")
+        if date_str not in self._cache:
+            self._cache[date_str] = {}
+        if currency_code not in self._cache[date_str]:
+            try: 
+                self._cache[date_str][currency_code] = self._fetch_conversion_rate(date_str, currency_code)
+            except ValueError as e:
+                logging.error(f"Error fetching conversion rate for {currency} on {date_str}: {e}")
+                return None
 
-        if currency not in self._conversion_rates[date_str]:
-            return None
-
-        rate = self._conversion_rates[date_str][currency]
-        return amount / rate
+        conversion_rate = self._cache[date_str][currency_code]
+        return amount * conversion_rate
