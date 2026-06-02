@@ -39,7 +39,7 @@ class DateCriteria:
         self.timestamp_to = int(dt_date_to.timestamp())
 
     def check(self, transaction: Transaction) -> bool:
-        return transaction.timestamp > self.timestamp_from and transaction.timestamp < self.timestamp_to
+        return self.timestamp_from <= transaction.timestamp <= self.timestamp_to
 
 class AndCriteria:
     def __init__(self, lhs: FilterCriteria, rhs: FilterCriteria):

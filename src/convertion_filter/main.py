@@ -24,11 +24,11 @@ class ConvertionFilter:
         self.usd_converter = USDConverter()
         self.count_by_client: dict[int, int] = {}
 
-    def _process_tran(self, client_id, tran_data: bytes) -> bool:
+    def _process_tran(self, client_id, tran_data: bytes):
         logging.debug(f"Received transaction for client {client_id}")
         tran = Q5Transaction.deserialize(tran_data)
         usd_amount = self.usd_converter.convert_to_usd(tran.timestamp, tran.currency_id, tran.amount)
-        if not usd_amount:
+        if usd_amount is None:
             return
         if usd_amount < MAX_USD_AMOUNT:
             if not client_id in self.count_by_client:
