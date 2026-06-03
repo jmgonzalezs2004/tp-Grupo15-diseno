@@ -35,7 +35,15 @@ class QueryResultsVerifier:
 
         output_query_results.sort()
         if expected_query_results != output_query_results:
-            raise Exception(f"Q{query_number}: Output results do not match expected results")
+            for i, (expected, actual) in enumerate(
+                zip(expected_query_results, output_query_results)
+            ):
+                if expected != actual:
+                    raise Exception(
+                        f"Q{query_number}: Difference at row {i}\n"
+                        f"Expected: {expected}\n"
+                        f"Actual:   {actual}"
+                    )
 
     def _read_output_query_results(self, output_file, query_number):
         q_result_output_reader = None
@@ -98,7 +106,9 @@ class QueryResultsVerifier:
                 # Update max transaction per bank
                 if transaction_item.from_bank_id not in max_tran_per_bank:
                     max_tran_per_bank[transaction_item.from_bank_id] = (transaction_item.from_account, transaction_item.amount)
-                elif transaction_item.amount > max_tran_per_bank[transaction_item.from_bank_id][1]:
+                elif (transaction_item.amount > max_tran_per_bank[transaction_item.from_bank_id][1] or 
+                      (transaction_item.amount == max_tran_per_bank[transaction_item.from_bank_id][1] and 
+                      transaction_item.from_account < max_tran_per_bank[transaction_item.from_bank_id][0])):
                     max_tran_per_bank[transaction_item.from_bank_id] = (transaction_item.from_account, transaction_item.amount)
 
             input_q2_results = []
