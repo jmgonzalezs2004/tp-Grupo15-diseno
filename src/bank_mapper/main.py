@@ -43,10 +43,16 @@ class BankMapper:
 
     def _process_tran_batch(self, client_id, batch: list[Q2Transaction]):
         logging.debug(f"Received transaction batch for client {client_id}")
+        items_by_bank_idx = [[] for _ in range(BANK_MAX_AMOUNT)]
         for tran in batch:
             dst_bank_max_idx = self._hash_bank(tran.from_bank_id)
-            message = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_TRAN, tran.serialize())
-            self.outbound_queue.put(OutboundMessage(dst_bank_max_idx, message))
+            items_by_bank_idx[dst_bank_max_idx].append(tran)
+
+        for idx in range(len(items_by_bank_idx)):
+            if len(items_by_bank_idx[idx]) > 0:
+                message = protocol.MsgEnvelope(client_id, protocol.MsgType.Q2_TRAN, 
+                                               Q2Transaction.serialize_batch(items_by_bank_idx[idx]))
+                self.outbound_queue.put(OutboundMessage(idx, message))
     
     def _process_eof(self, client_id):
         logging.info(f"Received EOF for client {client_id}")
