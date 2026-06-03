@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import os
 import logging
 import queue
@@ -19,6 +20,11 @@ ACCOUNTS_MAPPER_CONTROL_EXCHANGE = "ACCOUNTS_MAPPER_CONTROL_EXCHANGE"
 THREE_CHAIN_AMOUNT = int(os.environ["THREE_CHAIN_AMOUNT"])
 THREE_CHAIN_PREFIX = os.environ["THREE_CHAIN_PREFIX"]
 
+@dataclass
+class OutboundMessage:
+    dst_idx : int
+    msg: MsgEnvelope
+    
 class AccountsMapper:
     def __init__(self):
         self._input_queue = MessageMiddlewareQueueRabbitMQ(
@@ -27,7 +33,7 @@ class AccountsMapper:
         self._control_exchange_sender = MessageMiddlewareExchangeRabbitMQ(
             MOM_HOST, ACCOUNTS_MAPPER_CONTROL_EXCHANGE, [ACCOUNTS_MAPPER_PREFIX]
         )
-        self._queue_data_output_exchanges = queue.Queue()
+        self._queue_data_output_exchanges: queue.Queue[OutboundMessage] = queue.Queue()
 
         self._running = True
         self._lock_running = threading.Lock()
@@ -48,21 +54,27 @@ class AccountsMapper:
         key = (account.bank_id << 64) | account.account_id
         return key % THREE_CHAIN_AMOUNT
 
-    def _process_tran(self, client_id, transaction_2acc: Q4Transaction2Acc):
+    def _process_tran(self, client_id, transaction_2acc: Q4Transaction2Acc, dst_3c_lists: list[list]):
         """
         Process a transaction of 2 accounts. Route the transaction by both the source 
         and destination accounts to the corresponding data output exchange.
         """
-        exchange_index_source = self._route(client_id, transaction_2acc.from_acc)
-        exchange_index_dest = self._route(client_id, transaction_2acc.to_acc)
-
-        msg = MsgEnvelope(client_id, MsgType.Q4_TRAN_2ACC, transaction_2acc.serialize()).serialize()
-        self._queue_data_output_exchanges.put((msg, list(set([exchange_index_source, exchange_index_dest]))))
+        _3c_idx_source = self._route(client_id, transaction_2acc.from_acc)
+        _3c_idx_dest = self._route(client_id, transaction_2acc.to_acc)
+        dst_3c_lists[_3c_idx_source].append(transaction_2acc)
+        dst_3c_lists[_3c_idx_dest].append(transaction_2acc)
 
     def _process_tran_batch(self, client_id, batch: list[Q4Transaction2Acc]):
         logging.debug(f"Received transaction batch for client {client_id}")
+        items_by_3c_idx = [[] for _ in range(THREE_CHAIN_AMOUNT)]
         for tran in batch:
-            self._process_tran(client_id, tran)
+            self._process_tran(client_id, tran, items_by_3c_idx)
+        
+        for idx in range(len(items_by_3c_idx)):
+            if len(items_by_3c_idx[idx]) > 0:
+                message = MsgEnvelope(client_id, MsgType.Q4_TRAN_2ACC, 
+                                      Q4Transaction2Acc.serialize_batch(items_by_3c_idx[idx]))
+                self._queue_data_output_exchanges.put(OutboundMessage(idx, message))
 
     def _process_eof(self, client_id):
         logging.info(f"Received EOF for client {client_id}")
@@ -101,8 +113,9 @@ class AccountsMapper:
         Broadcast EOF message to the data output exchanges.
         """
         logging.info(f"Process EOF notification: broadcasting EOF message")
-        msg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS, b"").serialize()
-        self._queue_data_output_exchanges.put((msg, [i for i in range(THREE_CHAIN_AMOUNT)]))
+        msg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS, b"")
+        for dts_idx in range(THREE_CHAIN_AMOUNT):
+            self._queue_data_output_exchanges.put(OutboundMessage(dts_idx, msg))
 
     def _process_control_message(self, message, ack, nack):
         with self._lock_processing_message:
@@ -142,10 +155,9 @@ class AccountsMapper:
         ]
 
         while self._running or not self._queue_data_output_exchanges.empty():
-            msg, idx_exchanges = self._queue_data_output_exchanges.get()
+            item = self._queue_data_output_exchanges.get()
             try:
-                for i in idx_exchanges:
-                    self._data_output_exchanges[i].send(msg)
+                self._data_output_exchanges[item.dst_idx].send(item.msg.serialize())
             except Exception as e:
                 logging.error(f"Error sending message to data output exchange: {e}")
                 break

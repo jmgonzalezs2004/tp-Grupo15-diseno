@@ -40,19 +40,22 @@ class ThreeChain:
         except Exception as e:
             logging.error(f"Error stopping consuming messages: {e}")
 
-    def _process_data(self, client_id, data: bytes):
+    def _process_tran(self, client_id, transaction_2acc: Q4Transaction2Acc):
         """
         Process incoming transaction data by deserializing it and adding it 
         to the client's outgoing transactions set.
         """
-        logging.debug(f"Processing transaction for client {client_id}")
-        transaction_2acc = Q4Transaction2Acc.deserialize(data)
-
-        if client_id not in self._outgoing_tran:
-            self._outgoing_tran[client_id] = {}
         if transaction_2acc.from_acc not in self._outgoing_tran[client_id]:
             self._outgoing_tran[client_id][transaction_2acc.from_acc] = set()
         self._outgoing_tran[client_id][transaction_2acc.from_acc].add(transaction_2acc.to_acc)
+
+    def _process_tran_batch(self, client_id, batch: list[Q4Transaction2Acc]):
+        logging.debug(f"Received transaction batch for client {client_id}")
+        if client_id not in self._outgoing_tran:
+            self._outgoing_tran[client_id] = {}
+
+        for tran in batch:
+            self._process_tran(client_id, tran)
 
     def _process_eof(self, client_id):
         """
@@ -88,7 +91,8 @@ class ThreeChain:
         try:
             msg = MsgEnvelope.deserialize(message)
             if msg.msg_type == MsgType.Q4_TRAN_2ACC:
-                self._process_data(msg.client_id, msg.raw_data)
+                tran_batch = Q4Transaction2Acc.deserialize_batch(msg.raw_data)
+                self._process_tran_batch(msg.client_id, tran_batch)
             elif msg.msg_type == MsgType.END_OF_RECORDS:
                 self._process_eof(msg.client_id)
             else:
