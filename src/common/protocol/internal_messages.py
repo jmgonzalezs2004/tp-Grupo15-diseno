@@ -11,10 +11,32 @@ class SerializableMessage:
 
     def serialize(self) -> bytes:
         raise NotImplementedError
+    
+    @classmethod
+    def serialize_batch(cls, batch: list[SerializableMessage]) -> bytes:
+        buf = bytearray()
+        buf.extend(serialization.serialize_uint32(len(batch)))
+        for msg in batch:
+            buf.extend(msg.serialize())
+        return bytes(buf)
 
     @classmethod
     def deserialize(cls, data: bytes):
+        reader = MemoryReader(data)
+        return cls.deserialize_from(reader)
+    
+    @classmethod
+    def deserialize_from(cls, reader: MemoryReader):
         raise NotImplementedError
+    
+    @classmethod
+    def deserialize_batch(cls, data: bytes):
+        reader = MemoryReader(data)
+        count = reader.read_uint32()
+        return [
+            cls.deserialize_from(reader)
+            for _ in range(count)
+        ]
 
 # ----------------
 # GENERAL MESSAGES
@@ -45,8 +67,7 @@ class Transaction(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             timestamp=reader.read_uint32(),
             from_bank_id=reader.read_uint32(),
@@ -71,8 +92,7 @@ class BankRecord(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             bank_id=reader.read_uint32(),
             bank_name=reader.read_string(),
@@ -109,8 +129,7 @@ class Q1Transaction(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             from_bank_id=reader.read_uint32(),
             from_account=reader.read_uint64(),
@@ -144,8 +163,7 @@ class Q2Transaction(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             from_bank_id=reader.read_uint32(),
             from_account=reader.read_uint64(),
@@ -173,8 +191,7 @@ class Q2BankMax(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             from_bank_id=reader.read_uint32(),
             from_account=reader.read_uint64(),
@@ -198,8 +215,7 @@ class Q2Result(SerializableMessage):
         ])
     
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             from_bank_id=reader.read_uint32(),
             from_account=reader.read_uint64(),
@@ -216,8 +232,7 @@ class BankNameRequest(SerializableMessage):
         return serialization.serialize_uint32(self.bank_id)
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             bank_id=reader.read_uint32(),
         )
@@ -235,8 +250,7 @@ class BankNameResponse(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             bank_id=reader.read_uint32(),
             bank_name=reader.read_string(),
@@ -273,8 +287,7 @@ class Q3Transaction(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             timestamp=reader.read_uint32(),
             from_bank_id=reader.read_uint32(),
@@ -296,8 +309,7 @@ class Q3TransactionPreceding(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             payment_format_id=PaymentFormat(reader.read_uint32()),
             amount=reader.read_float(),
@@ -320,8 +332,7 @@ class Q3TransactionSubsequent(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             from_bank_id=reader.read_uint32(),
             from_account=reader.read_uint64(),
@@ -342,8 +353,7 @@ class Q3Average(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             payment_format_id=PaymentFormat(reader.read_uint32()),
             avg=reader.read_float(),
@@ -366,8 +376,7 @@ class Q3ResultTransaction(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             from_bank_id=reader.read_uint32(),
             from_account=reader.read_uint64(),
@@ -400,8 +409,8 @@ class Account:
             ]
         )
     
-    @staticmethod
-    def deserialize(reader: MemoryReader):
+    @classmethod
+    def deserialize_from(cls, reader: MemoryReader):
         return Account(
             reader.read_uint32(), # bank_id
             reader.read_uint64()  # account_id
@@ -426,11 +435,10 @@ class Q4Transaction2Acc(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
-            from_acc=Account.deserialize(reader),
-            to_acc=Account.deserialize(reader),
+            from_acc=Account.deserialize_from(reader),
+            to_acc=Account.deserialize_from(reader),
         )
 
 @dataclass
@@ -448,12 +456,11 @@ class Q4Transaction3Acc(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
-            from_acc=Account.deserialize(reader),
-            mid_acc=Account.deserialize(reader),
-            to_acc=Account.deserialize(reader),
+            from_acc=Account.deserialize_from(reader),
+            mid_acc=Account.deserialize_from(reader),
+            to_acc=Account.deserialize_from(reader),
         )
 
 @dataclass
@@ -467,10 +474,9 @@ class Q4LaunderingAcc(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
-            acc=Account.deserialize(reader),
+            acc=Account.deserialize_from(reader),
         )
 
 # ----------------
@@ -498,8 +504,7 @@ class Q5Transaction(SerializableMessage):
         ])
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             timestamp=reader.read_uint32(),
             currency_id=Currency(reader.read_uint32()),
@@ -515,8 +520,7 @@ class Q5Count(SerializableMessage):
         return serialization.serialize_uint32(self.count)
 
     @classmethod
-    def deserialize(cls, data: bytes):
-        reader = MemoryReader(data)
+    def deserialize_from(cls, reader: MemoryReader):
         return cls(
             count=reader.read_uint32(),
         )
