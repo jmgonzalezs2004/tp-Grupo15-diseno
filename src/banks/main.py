@@ -23,11 +23,12 @@ class Banks:
         )
         self.bank_names_by_client: dict[str, dict[int, str]] = {}
 
-    def _process_bank_record(self, client_id, bank_record: BankRecord) -> bool:
+    def _process_bank_records(self, client_id, bank_records: list[BankRecord]) -> bool:
         logging.debug(f"Received bank record for client {client_id}")
         if not client_id in self.bank_names_by_client:
             self.bank_names_by_client[client_id] = {}
-        self.bank_names_by_client[client_id][bank_record.bank_id] = bank_record.bank_name
+        for bank_record in bank_records:
+            self.bank_names_by_client[client_id][bank_record.bank_id] = bank_record.bank_name
     
     def _process_eof(self, client_id) -> bool:
         logging.info(f"Received banks EOF for client {client_id}")
@@ -48,8 +49,8 @@ class Banks:
         # TODO Implement BANK_PRUNE
         envelope = protocol.MsgEnvelope.deserialize(message)
         if envelope.msg_type == protocol.MsgType.BANK_RECORD:
-            bank_record = BankRecord.deserialize(envelope.raw_data)
-            self._process_bank_record(envelope.client_id, bank_record)
+            bank_records = BankRecord.deserialize_batch(envelope.raw_data)
+            self._process_bank_records(envelope.client_id, bank_records)
         elif envelope.msg_type == protocol.MsgType.END_OF_RECORDS:
             self._process_eof(envelope.client_id)
         elif envelope.msg_type == protocol.MsgType.BANK_NAME_REQUEST:

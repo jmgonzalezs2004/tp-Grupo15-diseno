@@ -1,16 +1,29 @@
 from common.protocol.internal import MsgEnvelope, MsgType
 from common.protocol.internal_messages import BankRecord, Transaction
 
-class MessageHandler:
 
+
+class MessageHandler:
     def __init__(self, client_id):
         self.client_id = client_id
 
-    def serialize_account_message(self, data):
-        [bank_name, bank_id, _, _, _] = data
-        bank = BankRecord(bank_id, bank_name)
-        message = MsgEnvelope(self.client_id, BankRecord.MESSAGE_TYPE, bank.serialize())
-        return message.serialize()
+    def _hash_bank(bank_id: int, banks_amount):
+        return bank_id % banks_amount
+    
+    def prepare_account_batch(self, data: list[tuple], banks_amount):
+        bank_records = [[] for i in range(banks_amount)]
+        for item in data:
+            bank_name, bank_id, _, _, _ = item
+            bank_records[MessageHandler._hash_bank(bank_id, banks_amount)].append(BankRecord(bank_id, bank_name))
+        
+        out_messages = []
+        for bank_idx in range(len(bank_records)):
+            if len(bank_records[bank_idx]) > 0:
+                out_messages.append(MsgEnvelope(self.client_id, BankRecord.MESSAGE_TYPE, 
+                                                BankRecord.serialize_batch(bank_records[bank_idx])).serialize())
+            else:
+                out_messages.append(None)
+        return out_messages
     
     def serialize_data_message(self, data):
         [timestamp, from_bank, from_account, to_bank, to_account, amount, currency, format] = data
