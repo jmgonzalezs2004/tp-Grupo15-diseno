@@ -39,21 +39,23 @@ class Q4Join:
         except Exception as e:
             logging.error(f"Error stopping consuming messages: {e}")
 
-    def _process_data(self, client_id, data: bytes):
+    def _process_tran(self, client_id, transaction_3acc: Q4Transaction3Acc):
         """
-        Deserialize an incoming 3-account transaction and update the scatter-gather
+        Receive a 3-account transaction and update the scatter-gather
         structure by grouping middle accounts per (source_acc, dest_acc) pair.
         """
-
-        logging.debug(f"Processing transaction data")
-        transaction_3acc = Q4Transaction3Acc.deserialize(data)
-
-        if client_id not in self._scatter_gather:
-            self._scatter_gather[client_id] = {}
         key = (transaction_3acc.from_acc, transaction_3acc.to_acc)
         if key not in self._scatter_gather[client_id]:
             self._scatter_gather[client_id][key] = set()
         self._scatter_gather[client_id][key].add(transaction_3acc.mid_acc)
+
+    def _process_tran_batch(self, client_id, batch: list[Q4Transaction3Acc]):
+        logging.debug(f"Received transaction batch for client {client_id}")
+        if client_id not in self._scatter_gather:
+            self._scatter_gather[client_id] = {}
+
+        for tran in batch:
+            self._process_tran(client_id, tran)
 
     def _process_eof(self, client_id):
         """
@@ -93,7 +95,8 @@ class Q4Join:
         try:
             msg = MsgEnvelope.deserialize(message)
             if msg.msg_type == MsgType.Q4_TRAN_3ACC:
-                self._process_data(msg.client_id, msg.raw_data)
+                tran_batch = Q4Transaction3Acc.deserialize_batch(msg.raw_data)
+                self._process_tran_batch(msg.client_id, tran_batch)
             elif msg.msg_type == MsgType.END_OF_RECORDS:
                 self._process_eof(msg.client_id)
             else:
