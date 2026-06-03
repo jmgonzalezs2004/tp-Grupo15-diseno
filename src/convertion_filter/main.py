@@ -24,9 +24,7 @@ class ConvertionFilter:
         self.usd_converter = USDConverter()
         self.count_by_client: dict[int, int] = {}
 
-    def _process_tran(self, client_id, tran_data: bytes):
-        logging.debug(f"Received transaction for client {client_id}")
-        tran = Q5Transaction.deserialize(tran_data)
+    def _process_tran(self, client_id, tran: Q5Transaction):
         usd_amount = self.usd_converter.convert_to_usd(tran.timestamp, tran.currency_id, tran.amount)
         if usd_amount is None:
             return
@@ -34,6 +32,11 @@ class ConvertionFilter:
             if not client_id in self.count_by_client:
                 self.count_by_client[client_id] = 0
             self.count_by_client[client_id] += 1
+
+    def _process_tran_batch(self, client_id, batch: list[Q5Transaction]):
+        logging.debug(f"Received transaction batch for client {client_id}")
+        for tran in batch:
+            self._process_tran(client_id, tran)
     
     def _process_eof(self, client_id):
         logging.info(f"Received EOF for client {client_id}")
@@ -45,7 +48,8 @@ class ConvertionFilter:
     def process_messsage(self, message, ack, nack):
         envelope = protocol.MsgEnvelope.deserialize(message)
         if envelope.msg_type == protocol.MsgType.Q5_TRAN:
-            self._process_tran(envelope.client_id, envelope.raw_data)
+            batch = Q5Transaction.deserialize_batch(envelope.raw_data)
+            self._process_tran_batch(envelope.client_id, batch)
         elif envelope.msg_type == protocol.MsgType.END_OF_RECORDS:
             self._process_eof(envelope.client_id)
         else:

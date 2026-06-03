@@ -21,9 +21,6 @@ DISTRIBUTOR_AMOUNT = int(os.environ["DISTRIBUTOR_AMOUNT"])
 DISTRIBUTOR_PREFIX = os.environ["DISTRIBUTOR_PREFIX"]
 QUERIES_COUNT = 5
 
-def _hash_bank(bank_id: int):
-    return bank_id % BANKS_AMOUNT
-
 @dataclass
 class OutboundMessage:
     msg_type: protocol.external.MsgType
@@ -140,20 +137,20 @@ class ClientSession:
                         raise RuntimeError("ACCOUNT_RECORD received after END_OF_RECORDS")
 
                     self.enqueue_message(protocol.external.MsgType.ACK)
-                    for batch_item in content:
-                        serialized_message = self.message_handler.serialize_account_message(batch_item)
-                        bank_id = batch_item[1]
-                        self.banks_exchanges[_hash_bank(bank_id)].send(serialized_message)
+                    serialized_messages = self.message_handler.prepare_account_batch(content, BANKS_AMOUNT)
+                    for bank_idx in range(len(serialized_messages)):
+                        if serialized_messages[bank_idx] is None:
+                            continue
+                        self.banks_exchanges[bank_idx].send(serialized_messages[bank_idx])
 
                 elif msg_type == protocol.external.MsgType.TRAN_RECORD:
                     if in_accounts_mode:
                         raise RuntimeError("TRAN_RECORD received before Accounts END_OF_RECORDS")
 
                     self.enqueue_message(protocol.external.MsgType.ACK)
-                    for batch_item in content:
-                        serialized_message = self.message_handler.serialize_data_message(batch_item)
-                        self.distributor_exchanges[dst_distributor].send(serialized_message)
-                        dst_distributor = (dst_distributor + 1) % DISTRIBUTOR_AMOUNT
+                    serialized_message = self.message_handler.prepare_tran_batch(content)
+                    self.distributor_exchanges[dst_distributor].send(serialized_message)
+                    dst_distributor = (dst_distributor + 1) % DISTRIBUTOR_AMOUNT
 
                 elif msg_type == protocol.external.MsgType.END_OF_RECORDS:
                     serialized_message = self.message_handler.serialize_eof_message(content)
@@ -317,7 +314,7 @@ class Gateway:
                 nack()
                 self.input_queue.stop_consuming()
 
-        self.input_queue.start_consuming(_consume_result, 50)
+        self.input_queue.start_consuming(_consume_result, 0)
         self.input_queue.close()
 
 

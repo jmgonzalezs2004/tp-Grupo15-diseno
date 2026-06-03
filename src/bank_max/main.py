@@ -25,17 +25,21 @@ class BankMaxFilter:
         self.max_by_bank_client: dict[int, dict[int, Q2BankMax]] = {}
         self._eofs_by_client: dict[int, int] = {}
 
-    def _process_tran(self, client_id, transaction: Q2Transaction) -> bool:
-        logging.debug(f"Received transaction for client {client_id}")
-        if not client_id in self.max_by_bank_client:
-            self.max_by_bank_client[client_id] = {}
-        
+    def _process_tran(self, client_id, transaction: Q2Transaction):
         max_by_bank = self.max_by_bank_client[client_id]
         if (not transaction.from_bank_id in max_by_bank or 
             transaction.amount > max_by_bank[transaction.from_bank_id].amount or
             (transaction.amount == max_by_bank[transaction.from_bank_id].amount and
             transaction.from_account < max_by_bank[transaction.from_bank_id].from_account)):
             max_by_bank[transaction.from_bank_id] = Q2BankMax.from_transaction(transaction)
+    
+    def _process_tran_batch(self, client_id, batch: list[Q2Transaction]):
+        logging.debug(f"Received transaction batch for client {client_id}")
+        if not client_id in self.max_by_bank_client:
+            self.max_by_bank_client[client_id] = {}
+        
+        for tran in batch:
+            self._process_tran(client_id, tran)
     
     def _process_eof(self, client_id):
         logging.info(f"Received EOF for client {client_id}")
@@ -60,8 +64,8 @@ class BankMaxFilter:
     def process_messsage(self, message, ack, nack):
         envelope = protocol.MsgEnvelope.deserialize(message)
         if envelope.msg_type == protocol.MsgType.Q2_TRAN:
-            tran = Q2Transaction.deserialize(envelope.raw_data)
-            self._process_tran(envelope.client_id, tran)
+            tran_batch = Q2Transaction.deserialize_batch(envelope.raw_data)
+            self._process_tran_batch(envelope.client_id, tran_batch)
         elif envelope.msg_type == protocol.MsgType.END_OF_RECORDS:
             self._process_eof(envelope.client_id)
         else:
