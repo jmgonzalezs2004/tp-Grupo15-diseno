@@ -31,7 +31,10 @@ class BankMaxFilter:
             self.max_by_bank_client[client_id] = {}
         
         max_by_bank = self.max_by_bank_client[client_id]
-        if not transaction.from_bank_id in max_by_bank or max_by_bank[transaction.from_bank_id].amount < transaction.amount:
+        if (not transaction.from_bank_id in max_by_bank or 
+            transaction.amount > max_by_bank[transaction.from_bank_id].amount or
+            (transaction.amount == max_by_bank[transaction.from_bank_id].amount and
+            transaction.from_account < max_by_bank[transaction.from_bank_id].from_account)):
             max_by_bank[transaction.from_bank_id] = Q2BankMax.from_transaction(transaction)
     
     def _process_eof(self, client_id):
