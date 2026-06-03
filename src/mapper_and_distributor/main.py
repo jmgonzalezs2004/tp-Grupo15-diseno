@@ -53,7 +53,7 @@ class MapperAndDistributor:
         hash_int = int.from_bytes(key, byteorder='big')
         return hash_int % nodes_amount
 
-    def _process_data(self, client_id, data: bytes):
+    def _process_tran(self, client_id, transaction: Q3Transaction):
         """
         Process transaction data for a client. 
         If the transaction is historical, we send it to node 'payment_format_avg' for 
@@ -61,9 +61,6 @@ class MapperAndDistributor:
         If the transaction is not historical, we send it to node 'amount_filter' for 
         filtering by amount.
         """
-        logging.debug(f"Processing transaction for client {client_id}")
-        transaction = Q3Transaction.deserialize(data)
-
         preceding_from_dt = int(datetime(2022, 9, 1, tzinfo=UTC).timestamp())
         preceding_to_dt = int(datetime(2022, 9, 5, 23, 59, 59, tzinfo=UTC).timestamp())
         if preceding_from_dt <= transaction.timestamp <= preceding_to_dt:
@@ -85,6 +82,11 @@ class MapperAndDistributor:
             exch_idx = self._route(client_id, transaction.payment_format_id, AMOUNT_FILTER_AMOUNT)
             self._queue_data_output_exchanges.put((msg, AMOUNT_FILTER_PREFIX, [exch_idx]))
 
+    def _process_tran_batch(self, client_id, batch: list[Q3Transaction]):
+        logging.debug(f"Received transaction batch for client {client_id}")
+        for tran in batch:
+            self._process_tran(client_id, tran)
+
     def _process_eof(self, client_id):
         logging.info(f"Received EOF for client {client_id}")
         self._queue_data_output_exchanges.join()
@@ -105,7 +107,8 @@ class MapperAndDistributor:
             try:
                 msg = MsgEnvelope.deserialize(message)
                 if msg.msg_type == MsgType.Q3_TRAN:
-                    self._process_data(msg.client_id, msg.raw_data)
+                    batch = Q3Transaction.deserialize_batch(msg.raw_data)
+                    self._process_tran_batch(msg.client_id, batch)
                 elif msg.msg_type == MsgType.END_OF_RECORDS:
                     self._process_eof(msg.client_id)
                 else:

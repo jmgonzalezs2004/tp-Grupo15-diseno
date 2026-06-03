@@ -5,6 +5,7 @@ import signal
 from common.middleware.middleware import MessageMiddlewareCloseError
 from common.middleware.middleware_rabbitmq import MessageMiddlewareQueueRabbitMQ
 from common.protocol.internal import MsgType, MsgEnvelope
+from common.protocol.internal_messages import Q1Transaction
 
 
 INPUT_QUEUE = os.environ["INPUT_QUEUE"]
@@ -33,13 +34,18 @@ class Q4Join:
         except Exception as e:
             logging.error(f"Error stopping consuming messages: {e}")
 
-    def _process_data(self, client_id, data: bytes):
+    def _process_tran(self, client_id, tran: Q1Transaction):
         """
         Process transaction data for a client. As the transaction was already processed 
         we just need to forward it to the output queue.
         """
-        logging.debug(f"Processing transaction for client {client_id}")
-        self._output_queue.send(MsgEnvelope(client_id, MsgType.Q1_TRAN, data).serialize())
+        out_msg = MsgEnvelope(client_id, MsgType.Q1_TRAN, tran.serialize())
+        self._output_queue.send(out_msg.serialize())
+
+    def _process_tran_batch(self, client_id, batch: list[Q1Transaction]):
+        logging.debug(f"Received transaction batch for client {client_id}")
+        for tran in batch:
+            self._process_tran(client_id, tran)
 
     def _process_eof(self, client_id):
         """
@@ -54,7 +60,8 @@ class Q4Join:
         try:
             msg = MsgEnvelope.deserialize(message)
             if msg.msg_type == MsgType.Q1_TRAN:
-                self._process_data(msg.client_id, msg.raw_data)
+                batch = Q1Transaction.deserialize_batch(msg.raw_data)
+                self._process_tran_batch(msg.client_id, batch)
             elif msg.msg_type == MsgType.END_OF_RECORDS:
                 self._process_eof(msg.client_id)
             else:

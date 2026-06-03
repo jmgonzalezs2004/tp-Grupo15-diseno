@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, Self
 
 from common.protocol import serialization
 from common.protocol.common_enums import Currency, PaymentFormat
@@ -26,7 +26,7 @@ class SerializableMessage:
         return cls.deserialize_from(reader)
     
     @classmethod
-    def deserialize_from(cls, reader: MemoryReader):
+    def deserialize_from(cls, reader: MemoryReader) -> Self:
         raise NotImplementedError
     
     @classmethod

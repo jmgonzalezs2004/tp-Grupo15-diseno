@@ -21,6 +21,7 @@ Q2_QUEUE = os.environ["Q2_QUEUE"]
 Q3_QUEUE = os.environ["Q3_QUEUE"]
 Q4_QUEUE = os.environ["Q4_QUEUE"]
 Q5_QUEUE = os.environ["Q5_QUEUE"]
+Q_COUNT = 5
 
 @dataclass
 class OutboundMessage:
@@ -55,8 +56,10 @@ class Distributor:
         # TODO Implement leader election, or improve our queues
         return ID == 0
 
-    def _distribute_tran(self, client_id, tran: SerializableMessage, query_num: int):
-        message = protocol.MsgEnvelope(client_id, tran.MESSAGE_TYPE, tran.serialize())
+    def _distribute_tran_batch(self, client_id, batch: list[SerializableMessage], query_num: int):
+        # Assumed batch not empty and every message inside the batch are the same type
+        msg_cls = type(batch[0])
+        message = protocol.MsgEnvelope(client_id, msg_cls.MESSAGE_TYPE, msg_cls.serialize_batch(batch))
         self._msg_outbound_queue.put(OutboundMessage(query_num, message))
 
     def _distribute_eof(self, client_id):
@@ -65,28 +68,34 @@ class Distributor:
         for i in range(5):
             self._msg_outbound_queue.put(OutboundMessage(i+1, message))
 
-    def _process_tran(self, client_id, transaction: Transaction) -> bool:
-        logging.debug(f"Received transaction for client {client_id}")
+    def _process_tran(self, transaction: Transaction, dst_q_lists: list[list]) -> bool:
         if self.q1_criteria.check(transaction):
-            logging.debug(f"Sending transaction to query 1 for client {client_id}")
             q_tran = Q1Transaction.from_transaction(transaction)
-            self._distribute_tran(client_id, q_tran, 1)
+            dst_q_lists[0].append(q_tran)
         if self.q2_criteria.check(transaction):
-            logging.debug(f"Sending transaction to query 2 for client {client_id}")
             q_tran = Q2Transaction.from_transaction(transaction)
-            self._distribute_tran(client_id, q_tran, 2)
+            dst_q_lists[1].append(q_tran)
         if self.q3_criteria.check(transaction):
-            logging.debug(f"Sending transaction to query 3 for client {client_id}")
             q_tran = Q3Transaction.from_transaction(transaction)
-            self._distribute_tran(client_id, q_tran, 3)
+            dst_q_lists[2].append(q_tran)
         if self.q4_criteria.check(transaction):
-            logging.debug(f"Sending transaction to query 4 for client {client_id}")
             q_tran = Q4Transaction2Acc.from_transaction(transaction)
-            self._distribute_tran(client_id, q_tran, 4)
+            dst_q_lists[3].append(q_tran)
         if self.q5_criteria.check(transaction):
-            logging.debug(f"Sending transaction to query 5 for client {client_id}")
             q_tran = Q5Transaction.from_transaction(transaction)
-            self._distribute_tran(client_id, q_tran, 5)
+            dst_q_lists[4].append(q_tran)
+    
+    def _process_tran_batch(self, client_id, batch: list[Transaction]):
+        dst_q_lists = [[] for _ in range(Q_COUNT)]
+        logging.debug(f"Received transaction batch for client {client_id}")
+        for tran in batch:
+            self._process_tran(tran, dst_q_lists)
+
+        for q_idx in range(len(dst_q_lists)):
+            if len(dst_q_lists[q_idx]) > 0:
+                q_num = q_idx+1
+                logging.debug(f"Sending transactions to query {q_num} for client {client_id}")
+                self._distribute_tran_batch(client_id, dst_q_lists[q_idx], q_num)
 
     def _evaluate_eofs(self, client_id):
         # Called from control_consumer_thread and main thread
@@ -111,8 +120,7 @@ class Distributor:
             envelope = protocol.MsgEnvelope.deserialize(message)
             if envelope.msg_type == protocol.MsgType.TRAN_RECORD:
                 tran_batch = Transaction.deserialize_batch(envelope.raw_data)
-                for tran in tran_batch:
-                    self._process_tran(envelope.client_id, tran)
+                self._process_tran_batch(envelope.client_id, tran_batch)
             elif envelope.msg_type == protocol.MsgType.END_OF_RECORDS:
                 self._process_eof(envelope.client_id, message)
             else:

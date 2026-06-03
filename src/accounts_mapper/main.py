@@ -49,19 +49,21 @@ class AccountsMapper:
         hash_int = int.from_bytes(key, byteorder='big')
         return hash_int % THREE_CHAIN_AMOUNT
 
-    def _process_data(self, client_id, data: bytes):
+    def _process_tran(self, client_id, transaction_2acc: Q4Transaction2Acc):
         """
         Process a transaction of 2 accounts. Route the transaction by both the source 
         and destination accounts to the corresponding data output exchange.
         """
-        logging.debug(f"Processing transaction for client {client_id}")
-        transaction_2acc = Q4Transaction2Acc.deserialize(data)
-
         exchange_index_source = self._route(client_id, transaction_2acc.from_acc)
         exchange_index_dest = self._route(client_id, transaction_2acc.to_acc)
 
         msg = MsgEnvelope(client_id, MsgType.Q4_TRAN_2ACC, transaction_2acc.serialize()).serialize()
         self._queue_data_output_exchanges.put((msg, list(set([exchange_index_source, exchange_index_dest]))))
+
+    def _process_tran_batch(self, client_id, batch: list[Q4Transaction2Acc]):
+        logging.debug(f"Received transaction batch for client {client_id}")
+        for tran in batch:
+            self._process_tran(client_id, tran)
 
     def _process_eof(self, client_id):
         logging.info(f"Received EOF for client {client_id}")
@@ -82,7 +84,8 @@ class AccountsMapper:
             try:
                 msg = MsgEnvelope.deserialize(message)
                 if msg.msg_type == MsgType.Q4_TRAN_2ACC:
-                    self._process_data(msg.client_id, msg.raw_data)
+                    batch = Q4Transaction2Acc.deserialize_batch(msg.raw_data)
+                    self._process_tran_batch(msg.client_id, batch)
                 elif msg.msg_type == MsgType.END_OF_RECORDS:
                     self._process_eof(msg.client_id)
                 else:
