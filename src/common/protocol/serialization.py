@@ -2,6 +2,7 @@ import struct
 
 _BIG_ENDIAN = '>'
 BOOL_SIZE = 1
+BYTE_SIZE = 1
 INT_SIZE = 4
 INT64_SIZE = 8
 FLOAT_SIZE = 8
@@ -65,6 +66,9 @@ class MemoryReader:
 
 def serialize_bool(u):
     return int(u).to_bytes(BOOL_SIZE, "big")
+
+def serialize_uint8(u: int):
+    return u.to_bytes(BYTE_SIZE, "big")
 
 def serialize_uint32(u: int):
     return u.to_bytes(INT_SIZE, "big")

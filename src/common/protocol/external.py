@@ -79,8 +79,8 @@ def _recv_tran_record(socket: socket):
         to_bank_id = reader.read_uint32()
         to_account = reader.read_uint64()
         amount = reader.read_float()
-        currency = reader.read_uint32()
-        payment_format = reader.read_uint32()
+        currency = reader.read_byte()
+        payment_format = reader.read_byte()
         return (timestamp, from_bank_id, from_account, to_bank_id, to_account, amount, currency, payment_format)
     
     payload_len = _recv_uint32(socket)
@@ -165,25 +165,23 @@ def _serialize_account_batch(batch: list[tuple]):
 # Parameters come with the same format as csv dataset
 def _serialize_tran_record(timestamp, from_bank_id, from_account, 
                            to_bank_id, to_account, amount, currency, payment_format_id):
-    dt = datetime.strptime(timestamp, "%Y/%m/%d %H:%M")
-    dt = dt.replace(tzinfo=timezone.utc)
+    dt = datetime.strptime(timestamp, "%Y/%m/%d %H:%M").replace(tzinfo=timezone.utc)
     timestamp = int(dt.timestamp())
-    return b"".join(
-        [
-            serialization.serialize_uint32(timestamp),
-            serialization.serialize_uint32(int(from_bank_id)),
-            serialization.serialize_uint64(int(from_account, 16)),
-            serialization.serialize_uint32(int(to_bank_id)),
-            serialization.serialize_uint64(int(to_account, 16)),
-            serialization.serialize_float(float(amount)),
-            serialization.serialize_uint32(Currency.from_str(currency).value),
-            serialization.serialize_uint32(PaymentFormat.from_str(payment_format_id).value)
-        ]
-    )
+    return b"".join((
+        serialization.serialize_uint32(timestamp),
+        serialization.serialize_uint32(int(from_bank_id)),
+        serialization.serialize_uint64(int(from_account, 16)),
+        serialization.serialize_uint32(int(to_bank_id)),
+        serialization.serialize_uint64(int(to_account, 16)),
+        serialization.serialize_float(float(amount)),
+        serialization.serialize_uint8(Currency.from_str(currency).value),
+        serialization.serialize_uint8(PaymentFormat.from_str(payment_format_id).value)
+    ))
 
 def _serialize_tran_batch(batch: list[tuple]):
-    return b"".join(
-        [serialization.serialize_uint32(len(batch))] + [_serialize_tran_record(*item) for item in batch]
+    return (
+        serialization.serialize_uint32(len(batch)) 
+        + b"".join(_serialize_tran_record(*item) for item in batch)
     )
 
 def _send_account_record(socket: socket, batch: list):

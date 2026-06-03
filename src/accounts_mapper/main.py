@@ -7,7 +7,7 @@ import signal
 from common.middleware.middleware import MessageMiddlewareCloseError
 from common.middleware.middleware_rabbitmq import MessageMiddlewareExchangeRabbitMQ, MessageMiddlewareQueueRabbitMQ
 from common.protocol.internal import MsgType, MsgEnvelope
-from common.protocol.internal_messages import Q4Transaction2Acc
+from common.protocol.internal_messages import Account, Q4Transaction2Acc
 
 
 ID = int(os.environ["ID"])
@@ -44,10 +44,9 @@ class AccountsMapper:
         except Exception as e:
             logging.error(f"Error stopping consuming messages: {e}")
 
-    def _route(self, client_id, account):
-        key = f"{client_id}:{account.bank_id}:{account.account_id}".encode()
-        hash_int = int.from_bytes(key, byteorder='big')
-        return hash_int % THREE_CHAIN_AMOUNT
+    def _route(self, client_id, account: Account):
+        key = (account.bank_id << 64) | account.account_id
+        return key % THREE_CHAIN_AMOUNT
 
     def _process_tran(self, client_id, transaction_2acc: Q4Transaction2Acc):
         """
