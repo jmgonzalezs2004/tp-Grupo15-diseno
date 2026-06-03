@@ -6,6 +6,7 @@ import socket
 import threading
 from dataclasses import dataclass
 
+from common.protocol import serialization
 import message_handler
 from common import middleware, protocol
 from message_handler.client_id_generator import ClientIdGenerator
@@ -284,6 +285,8 @@ class Gateway:
                     msg_type = deserialized_message.msg_type
                     raw_data = deserialized_message.raw_data
                     if msg_type == protocol.internal.MsgType.Q1_TRAN:
+                        payload_len = len(raw_data)
+                        raw_data = serialization.serialize_uint32(payload_len) + raw_data
                         session.enqueue_message(protocol.external.MsgType.Q1_TRAN, raw_data)
                     elif msg_type == protocol.internal.MsgType.Q1_END:
                         session.enqueue_message(protocol.external.MsgType.Q1_END)
