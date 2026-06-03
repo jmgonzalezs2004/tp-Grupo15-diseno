@@ -110,8 +110,9 @@ class Distributor:
         with self._lock_processing_message:
             envelope = protocol.MsgEnvelope.deserialize(message)
             if envelope.msg_type == protocol.MsgType.TRAN_RECORD:
-                tran = Transaction.deserialize(envelope.raw_data)
-                self._process_tran(envelope.client_id, tran)
+                tran_batch = Transaction.deserialize_batch(envelope.raw_data)
+                for tran in tran_batch:
+                    self._process_tran(envelope.client_id, tran)
             elif envelope.msg_type == protocol.MsgType.END_OF_RECORDS:
                 self._process_eof(envelope.client_id, message)
             else:

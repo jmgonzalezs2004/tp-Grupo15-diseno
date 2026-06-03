@@ -148,10 +148,9 @@ class ClientSession:
                         raise RuntimeError("TRAN_RECORD received before Accounts END_OF_RECORDS")
 
                     self.enqueue_message(protocol.external.MsgType.ACK)
-                    for batch_item in content:
-                        serialized_message = self.message_handler.serialize_data_message(batch_item)
-                        self.distributor_exchanges[dst_distributor].send(serialized_message)
-                        dst_distributor = (dst_distributor + 1) % DISTRIBUTOR_AMOUNT
+                    serialized_message = self.message_handler.prepare_tran_batch(content)
+                    self.distributor_exchanges[dst_distributor].send(serialized_message)
+                    dst_distributor = (dst_distributor + 1) % DISTRIBUTOR_AMOUNT
 
                 elif msg_type == protocol.external.MsgType.END_OF_RECORDS:
                     serialized_message = self.message_handler.serialize_eof_message(content)
