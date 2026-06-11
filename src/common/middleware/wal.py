@@ -5,7 +5,7 @@ import logging
 class WriteAheadLog:
     def __init__(self, cluster_config):
         self.config = cluster_config
-        self.storage_dir = f"/data/wal_{cluster_config.cluster_name}_{cluster_config.node_id}"
+        self.storage_dir = f"data/wal_{cluster_config.cluster_name}_{cluster_config.node_id}"
         os.makedirs(self.storage_dir, exist_ok=True)
         self.filepath = os.path.join(self.storage_dir, "journal.bin")
         self.next_entry_id = 1

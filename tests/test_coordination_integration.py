@@ -72,6 +72,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../s
 
 from common.middleware.cluster_config import ClusterConfig
 from common.middleware.middleware_rabbitmq import MessageMiddlewareExchangeRabbitMQ, MessageMiddlewareQueueRabbitMQ
+from common.middleware.cluster_middleware import ClusterMiddleware
 from common.protocol.internal import MsgType, MsgEnvelope
 from common.protocol.serialization import serialize_uint32
 
@@ -80,16 +81,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 def run_node(node_id):
     config = ClusterConfig("test_cluster", node_id, 3)
     
-    # Input exchange
-    input_exchange = MessageMiddlewareExchangeRabbitMQ(
-        'localhost', 'test_prefix', [f'test_prefix_{node_id}'],
-        cluster_config=config, enable_wal=True
-    )
-    
-    # Output queue (share coordinator)
-    output_queue = MessageMiddlewareQueueRabbitMQ(
-        'localhost', 'test_output',
-        coordinator=input_exchange.coordinator
+    # El middleware unificado, 100% puro
+    middleware = ClusterMiddleware(
+        cluster_config=config,
+        host='localhost',
+        input_exchange=('test_prefix', [f'test_prefix_{node_id}']),
+        output_queue='test_output'
     )
     
     # Callback when phase completes
@@ -97,11 +94,11 @@ def run_node(node_id):
         logging.info(f"[Node {node_id}] Phase complete callback called. Total sent: {total_sent}")
         # Enviar EOF a la siguiente fase
         eof_msg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS, serialize_uint32(total_sent))
-        output_queue.send_raw(eof_msg.serialize())
+        middleware.send_raw(eof_msg.serialize())
 
-    input_exchange.coordinator.set_eof_callback(on_phase_complete)
+    middleware.coordinator.set_eof_callback(on_phase_complete)
 
-    def on_message(body, ack, nack):
+    def on_message(body):
         envelope = MsgEnvelope.deserialize(body)
         logging.info(f"[Node {node_id}] Received message type {envelope.msg_type}")
         
@@ -110,13 +107,13 @@ def run_node(node_id):
         
         # Send an output message (this triggers output count automatically)
         out_msg = MsgEnvelope(envelope.client_id, MsgType.TRAN_RECORD, b"data")
-        output_queue.send(out_msg.serialize())
+        middleware.send(out_msg.serialize())
         
-        # Ack the message (this marks WAL as done)
-        ack()
+        # We don't call ack() manually anymore! 
+        # The ClusterMiddleware auto-ACKs and manages WAL on successful return.
 
     logging.info(f"[Node {node_id}] Starting consuming")
-    input_exchange.start_consuming(on_message)
+    middleware.start_consuming(on_message)
 
 def simulate_gateway():
     time.sleep(2) # Wait for nodes to start
@@ -153,7 +150,7 @@ def simulate_gateway():
 
 if __name__ == '__main__':
     # Clean WAL dir
-    os.system("rm -rf /data/wal_test_cluster_*")
+    os.system("rm -rf data/wal_test_cluster_*")
 
     threads = []
     for i in range(3):
