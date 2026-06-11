@@ -29,24 +29,28 @@ class ClusterMiddleware:
                  host: str,
                  input_queue: str = None,
                  input_exchange: tuple = None,
-                 output_queue: str = None,
-                 output_exchange: tuple = None):
+                 output_queues: dict = None,
+                 output_exchanges: dict = None):
         
         self.wal = WriteAheadLog(cluster_config) if cluster_config else None
         self.coordinator = ClusterCoordinator(cluster_config, host) if cluster_config else None
         
         self.input_middleware = None
-        self.output_middleware = None
+        self.output_middlewares = {}
 
         if input_queue:
             self.input_middleware = MessageMiddlewareQueueRabbitMQ(host, input_queue)
         elif input_exchange:
             self.input_middleware = MessageMiddlewareExchangeRabbitMQ(host, input_exchange[0], input_exchange[1])
 
-        if output_queue:
-            self.output_middleware = MessageMiddlewareQueueRabbitMQ(host, output_queue)
-        elif output_exchange:
-            self.output_middleware = MessageMiddlewareExchangeRabbitMQ(host, output_exchange[0], output_exchange[1])
+        if output_queues:
+            for key, q_name in output_queues.items():
+                self.output_middlewares[key] = MessageMiddlewareQueueRabbitMQ(host, q_name)
+                
+        if output_exchanges:
+            for key, ex_tuple in output_exchanges.items():
+                # ex_tuple format: (exchange_name, [routing_keys])
+                self.output_middlewares[key] = MessageMiddlewareExchangeRabbitMQ(host, ex_tuple[0], ex_tuple[1])
 
     def start_consuming(self, on_message_callback, *args, **kwargs):
         if not self.input_middleware:
@@ -82,28 +86,39 @@ class ClusterMiddleware:
         if self.input_middleware:
             self.input_middleware.stop_consuming()
 
-    def send(self, message: bytes):
-        if not self.output_middleware:
+    def send(self, message: bytes, output_key: str = None):
+        if not self.output_middlewares:
             raise ValueError("No output configured for this node")
             
-        self.output_middleware.send(message)
+        if output_key is None and len(self.output_middlewares) == 1:
+            output_key = list(self.output_middlewares.keys())[0]
+            
+        if output_key not in self.output_middlewares:
+            raise ValueError(f"Output key '{output_key}' not found")
+            
+        self.output_middlewares[output_key].send(message)
         
         if self.coordinator:
             client_id = _get_client_id_from_envelope(message)
             self.coordinator.log_output(client_id)
 
-    def send_raw(self, message: bytes):
-        if not self.output_middleware:
+    def send_raw(self, message: bytes, output_key: str = None):
+        if not self.output_middlewares:
             raise ValueError("No output configured for this node")
-        if hasattr(self.output_middleware, 'send_raw'):
-            self.output_middleware.send_raw(message)
+            
+        if output_key is None and len(self.output_middlewares) == 1:
+            output_key = list(self.output_middlewares.keys())[0]
+            
+        mw = self.output_middlewares[output_key]
+        if hasattr(mw, 'send_raw'):
+            mw.send_raw(message)
         else:
-            self.output_middleware.send(message)
+            mw.send(message)
 
     def close(self):
         if self.coordinator:
             self.coordinator.stop()
         if self.input_middleware:
             self.input_middleware.close()
-        if self.output_middleware:
-            self.output_middleware.close()
+        for mw in self.output_middlewares.values():
+            mw.close()

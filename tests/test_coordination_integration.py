@@ -81,12 +81,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 def run_node(node_id):
     config = ClusterConfig("test_cluster", node_id, 3)
     
-    # El middleware unificado, 100% puro
+    # El middleware unificado, 100% puro y multi-output
     middleware = ClusterMiddleware(
         cluster_config=config,
         host='localhost',
         input_exchange=('test_prefix', [f'test_prefix_{node_id}']),
-        output_queue='test_output'
+        output_queues={'out': 'test_output'}
     )
     
     # Callback when phase completes
@@ -107,7 +107,7 @@ def run_node(node_id):
         
         # Send an output message (this triggers output count automatically)
         out_msg = MsgEnvelope(envelope.client_id, MsgType.TRAN_RECORD, b"data")
-        middleware.send(out_msg.serialize())
+        middleware.send(out_msg.serialize(), output_key='out')
         
         # We don't call ack() manually anymore! 
         # The ClusterMiddleware auto-ACKs and manages WAL on successful return.
