@@ -30,25 +30,32 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
         entry_id = None
         if hasattr(self, 'wal') and self.wal:
             entry_id = self.wal.write(body)
+            # Damos el ACK temprano a RabbitMQ porque ya está seguro en nuestro disco
+            ch.basic_ack(delivery_tag = method.delivery_tag)
 
         if hasattr(self, 'coordinator') and self.coordinator:
             client_id = _get_client_id_from_envelope(body)
             if _is_eof_message(body):
                 expected = _get_expected_count_from_eof(body)
                 self.coordinator.on_eof(client_id, expected)
-                ch.basic_ack(delivery_tag = method.delivery_tag)
                 if hasattr(self, 'wal') and self.wal:
                     self.wal.mark_done(entry_id)
+                elif not hasattr(self, 'wal') or not self.wal:
+                    ch.basic_ack(delivery_tag = method.delivery_tag)
                 return
             else:
                 self.coordinator.log_input(client_id)
 
         def ack_func():
-            ch.basic_ack(delivery_tag = method.delivery_tag)
             if hasattr(self, 'wal') and self.wal:
                 self.wal.mark_done(entry_id)
+            else:
+                ch.basic_ack(delivery_tag = method.delivery_tag)
                 
-        nack_func = lambda: ch.basic_nack(delivery_tag = method.delivery_tag)
+        def nack_func():
+            if not hasattr(self, 'wal') or not self.wal:
+                ch.basic_nack(delivery_tag = method.delivery_tag)
+                
         self.on_message_callback(body, ack_func, nack_func)
 
     def __init__(self, host, queue_name, cluster_config=None, enable_wal=False, heartbeat=0, coordinator=None):
@@ -71,19 +78,7 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
     def start_consuming(self, on_message_callback, prefectch=1):
         self.on_message_callback = on_message_callback
         
-        if hasattr(self, 'wal') and self.wal:
-            pending = self.wal.recover()
-            for raw_msg in pending:
-                class MockMethod: pass
-                method = MockMethod()
-                method.delivery_tag = 0
-                
-                class MockChannel:
-                    def basic_ack(self, delivery_tag): pass
-                    def basic_nack(self, delivery_tag): pass
-                
-                self._on_message_received(MockChannel(), method, None, raw_msg)
-        
+
         try:
             if prefectch > 0:
                 self.channel.basic_qos(prefetch_count=prefectch)
@@ -140,25 +135,32 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
         entry_id = None
         if hasattr(self, 'wal') and self.wal:
             entry_id = self.wal.write(body)
+            # Damos el ACK temprano a RabbitMQ porque ya está seguro en nuestro disco
+            ch.basic_ack(delivery_tag = method.delivery_tag)
 
         if hasattr(self, 'coordinator') and self.coordinator:
             client_id = _get_client_id_from_envelope(body)
             if _is_eof_message(body):
                 expected = _get_expected_count_from_eof(body)
                 self.coordinator.on_eof(client_id, expected)
-                ch.basic_ack(delivery_tag = method.delivery_tag)
                 if hasattr(self, 'wal') and self.wal:
                     self.wal.mark_done(entry_id)
+                elif not hasattr(self, 'wal') or not self.wal:
+                    ch.basic_ack(delivery_tag = method.delivery_tag)
                 return
             else:
                 self.coordinator.log_input(client_id)
 
         def ack_func():
-            ch.basic_ack(delivery_tag = method.delivery_tag)
             if hasattr(self, 'wal') and self.wal:
                 self.wal.mark_done(entry_id)
+            else:
+                ch.basic_ack(delivery_tag = method.delivery_tag)
                 
-        nack_func = lambda: ch.basic_nack(delivery_tag = method.delivery_tag)
+        def nack_func():
+            if not hasattr(self, 'wal') or not self.wal:
+                ch.basic_nack(delivery_tag = method.delivery_tag)
+                
         self.on_message_callback(body, ack_func, nack_func)
     
     def __init__(self, host, exchange_name, routing_keys, cluster_config=None, enable_wal=False, heartbeat=0, coordinator=None):
@@ -182,19 +184,7 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
     def start_consuming(self, on_message_callback):
         self.on_message_callback = on_message_callback
         
-        if hasattr(self, 'wal') and self.wal:
-            pending = self.wal.recover()
-            for raw_msg in pending:
-                class MockMethod: pass
-                method = MockMethod()
-                method.delivery_tag = 0
-                
-                class MockChannel:
-                    def basic_ack(self, delivery_tag): pass
-                    def basic_nack(self, delivery_tag): pass
-                
-                self._on_message_received(MockChannel(), method, None, raw_msg)
-                
+
         try:
             result: Method = self.channel.queue_declare(queue='', exclusive=True)
             queue_name: str = result.method.queue
