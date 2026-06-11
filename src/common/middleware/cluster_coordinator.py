@@ -3,7 +3,6 @@ import logging
 from common.middleware.cluster_config import ClusterConfig
 from common.middleware.control_messages import ControlMsgType, ControlEnvelope, LeaderAnnounce, CounterReport, PhaseComplete
 from common.protocol.serialization import MemoryReader
-# We'll use pika directly here for the control exchange to keep it separate from the main data loop
 import pika
 
 class ClusterCoordinator:
@@ -13,14 +12,11 @@ class ClusterCoordinator:
         self.control_exchange = f"{config.cluster_name}_control"
         self._lock = threading.Lock()
         
-        # State per client_id
-        # client_id -> {"processed": 0, "sent": 0, "is_leader": False, "expected_count": 0, "reports": {node_id: (proc, sent)}}
         self.client_states = {}
         
         self.eof_callback = None
         self._running = True
         
-        # We start the control consumer thread
         self.control_thread = threading.Thread(target=self._run_control_consumer, daemon=True)
         self.control_thread.start()
 
@@ -57,7 +53,6 @@ class ClusterCoordinator:
             state["is_leader"] = True
             state["expected_count"] = expected_count
             
-            # Announce leadership
             msg = LeaderAnnounce(client_id)
             env = ControlEnvelope(ControlMsgType.LEADER_ANNOUNCE, msg.serialize())
             self._send_control_msg(env)
@@ -65,7 +60,6 @@ class ClusterCoordinator:
             self._check_phase_complete(client_id, state)
 
     def _send_counter_update(self, client_id, state):
-        # We only need to send updates if we know there's a leader (or just broadcast to the control exchange and the leader will see it)
         msg = CounterReport(client_id, self.config.node_id, state["processed"], state["sent"])
         env = ControlEnvelope(ControlMsgType.COUNTER_REPORT, msg.serialize())
         self._send_control_msg(env)
@@ -83,12 +77,10 @@ class ClusterCoordinator:
             
         if total_processed >= state["expected_count"]:
             logging.info(f"[{self.config.cluster_name}_{self.config.node_id}] Phase complete for client {client_id}. Total processed: {total_processed}, Sent: {total_sent}")
-            # Notify everyone to clean up
             msg = PhaseComplete(client_id)
             env = ControlEnvelope(ControlMsgType.PHASE_COMPLETE, msg.serialize())
             self._send_control_msg(env)
             
-            # Notify the next phase via the callback
             if self.eof_callback:
                 self.eof_callback(client_id, total_sent)
 
@@ -116,12 +108,11 @@ class ClusterCoordinator:
             def on_msg(ch, method, properties, body):
                 env = ControlEnvelope.deserialize(body)
                 with self._lock:
-                    state = self._get_or_create_state(env.msg_type) # this is wrong, but wait, deserialize
+                    state = self._get_or_create_state(env.msg_type)
                     
                     if env.msg_type == ControlMsgType.LEADER_ANNOUNCE:
                         msg = LeaderAnnounce.deserialize_from(MemoryReader(env.raw_data))
                         state = self._get_or_create_state(msg.client_id)
-                        # Reply with our counters
                         self._send_counter_update(msg.client_id, state)
                         
                     elif env.msg_type == ControlMsgType.COUNTER_REPORT:

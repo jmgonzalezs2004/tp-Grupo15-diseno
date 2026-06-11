@@ -7,18 +7,14 @@ from .middleware import MessageMiddlewareCloseError, MessageMiddlewareDisconnect
 from common.protocol.internal import MsgType
 from common.protocol.serialization import deserialize_uint
 
-# Exceptions doc
-# https://pika.readthedocs.io/en/stable/_modules/pika/exceptions.html
 
 def _get_client_id_from_envelope(body: bytes) -> int:
-    # MsgEnvelope has client_id as the first 4 bytes (uint32)
     if len(body) >= 4:
         return int.from_bytes(body[:4], "big")
     return 0
 
 def _is_eof_message(body: bytes) -> bool:
     if len(body) >= 8:
-        # msg_type is the second uint32
         msg_type = int.from_bytes(body[4:8], "big")
         return msg_type == MsgType.END_OF_RECORDS
     return False
@@ -76,19 +72,12 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
         self.on_message_callback = on_message_callback
         
         if hasattr(self, 'wal') and self.wal:
-            # Recover pending messages
             pending = self.wal.recover()
             for raw_msg in pending:
-                # We could process them synchronously here, simulating they just arrived.
-                # However, they don't have a delivery_tag from RabbitMQ right now.
-                # Since we already ACKed them to RabbitMQ before crash, we just call the callback
-                # and when the callback calls ack(), we mark it done in WAL.
-                # We mock the method object
                 class MockMethod: pass
                 method = MockMethod()
                 method.delivery_tag = 0
                 
-                # We also need a mock channel that doesn't actually ack RabbitMQ
                 class MockChannel:
                     def basic_ack(self, delivery_tag): pass
                     def basic_nack(self, delivery_tag): pass

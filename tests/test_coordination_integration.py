@@ -3,6 +3,70 @@ import sys
 import time
 import logging
 import threading
+from unittest.mock import MagicMock
+
+# --- SIMULACIÓN DE PIKA Y RABBITMQ PARA LA PRUEBA SIN DOCKER ---
+import sys
+import collections
+
+mock_pika = MagicMock()
+
+GLOBAL_CALLBACKS = {}
+GLOBAL_EXCHANGES = {}
+
+class MockChannel:
+    def __init__(self):
+        self.is_open = True
+    def queue_declare(self, queue, **kwargs):
+        class Result: pass
+        res = Result()
+        res.method = Result()
+        import uuid
+        res.method.queue = queue if queue else f"temp_queue_{uuid.uuid4().hex}"
+        return res
+
+    def exchange_declare(self, exchange, exchange_type): pass
+    def queue_bind(self, exchange, queue, routing_key):
+        GLOBAL_EXCHANGES[routing_key] = queue
+    def basic_qos(self, prefetch_count): pass
+    
+    def basic_consume(self, queue, on_message_callback, auto_ack):
+        GLOBAL_CALLBACKS[queue] = on_message_callback
+        
+    def start_consuming(self):
+        # Para que no bloquee el hilo principal en el test
+        while True: time.sleep(1)
+
+    def basic_publish(self, exchange, routing_key, body):
+        class MockMethod: pass
+        m = MockMethod()
+        m.delivery_tag = 1
+        
+        # Enrutamiento basado en queue_bind
+        queue_to_deliver = GLOBAL_EXCHANGES.get(routing_key, routing_key)
+        
+        for q, cb in GLOBAL_CALLBACKS.items():
+            if q == queue_to_deliver or (routing_key != '' and routing_key in q) or (exchange != '' and exchange in q):
+                # Disparamos el callback asincrónicamente
+                threading.Thread(target=cb, args=(self, m, None, body)).start()
+
+    def basic_ack(self, delivery_tag): pass
+    def basic_nack(self, delivery_tag): pass
+
+class MockConn:
+    def __init__(self):
+        self.is_open = True
+    def channel(self): return MockChannel()
+    def close(self): pass
+
+mock_pika.BlockingConnection.return_value = MockConn()
+sys.modules['pika'] = mock_pika
+sys.modules['pika.adapters.blocking_connection'] = MagicMock()
+sys.modules['pika.spec'] = MagicMock()
+sys.modules['pika.frame'] = MagicMock()
+sys.modules['pika.exceptions'] = MagicMock()
+mock_pika.exceptions.AMQPConnectionError = Exception
+# ----------------------------------------------------------------
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
