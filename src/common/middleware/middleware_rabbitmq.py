@@ -103,13 +103,17 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
         except AMQPConnectionError as e:
             raise MessageMiddlewareDisconnectedError() from e
 
-    def send(self, message):
+    def send(self, message, routing_key=None):
         try:
-            # Should publishers with multiple routing keys be supported?
-            for key in self.routing_keys:
+            if routing_key is not None:
                 self.channel.basic_publish(exchange=self.exchange_name,
-                                           routing_key=key,
+                                           routing_key=routing_key,
                                            body=message)
+            else:
+                for key in self.routing_keys:
+                    self.channel.basic_publish(exchange=self.exchange_name,
+                                               routing_key=key,
+                                               body=message)
         except AMQPConnectionError as e:
             raise MessageMiddlewareDisconnectedError() from e
         except Exception as e:

@@ -86,7 +86,7 @@ class ClusterMiddleware:
         if self.input_middleware:
             self.input_middleware.stop_consuming()
 
-    def send(self, message: bytes, output_key: str = None):
+    def send(self, message: bytes, output_key: str = None, **kwargs):
         if not self.output_middlewares:
             raise ValueError("No output configured for this node")
             
@@ -96,13 +96,13 @@ class ClusterMiddleware:
         if output_key not in self.output_middlewares:
             raise ValueError(f"Output key '{output_key}' not found")
             
-        self.output_middlewares[output_key].send(message)
+        self.output_middlewares[output_key].send(message, **kwargs)
         
         if self.coordinator:
             client_id = _get_client_id_from_envelope(message)
             self.coordinator.log_output(client_id)
 
-    def send_raw(self, message: bytes, output_key: str = None):
+    def send_raw(self, message: bytes, output_key: str = None, **kwargs):
         if not self.output_middlewares:
             raise ValueError("No output configured for this node")
             
@@ -111,9 +111,9 @@ class ClusterMiddleware:
             
         mw = self.output_middlewares[output_key]
         if hasattr(mw, 'send_raw'):
-            mw.send_raw(message)
+            mw.send_raw(message, **kwargs)
         else:
-            mw.send(message)
+            mw.send(message, **kwargs)
 
     def close(self):
         if self.coordinator:
