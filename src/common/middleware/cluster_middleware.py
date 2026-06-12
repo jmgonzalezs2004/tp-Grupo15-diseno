@@ -100,9 +100,9 @@ class ClusterMiddleware:
         
         if self.coordinator:
             client_id = _get_client_id_from_envelope(message)
-            self.coordinator.log_output(client_id)
+            self.coordinator.log_output(client_id, str(output_key), count=1)
 
-    def send_raw(self, message: bytes, output_key: str = None, **kwargs):
+    def send_raw(self, message: bytes, output_key: str = None, count: int = 1, **kwargs):
         if not self.output_middlewares:
             raise ValueError("No output configured for this node")
             
@@ -114,6 +114,10 @@ class ClusterMiddleware:
             mw.send_raw(message, **kwargs)
         else:
             mw.send(message, **kwargs)
+            
+        if self.coordinator:
+            client_id = _get_client_id_from_envelope(message)
+            self.coordinator.log_output(client_id, str(output_key), count=count)
 
     def close(self):
         if self.coordinator:

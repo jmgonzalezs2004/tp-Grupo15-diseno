@@ -27,7 +27,7 @@ class ClusterCoordinator:
         if client_id not in self.client_states:
             self.client_states[client_id] = {
                 "processed": 0,
-                "sent": 0,
+                "sent": {},
                 "is_leader": False,
                 "expected_count": 0,
                 "reports": {},
@@ -42,10 +42,14 @@ class ClusterCoordinator:
             if state["leader_announced"]:
                 self._send_counter_update(client_id, state)
 
-    def log_output(self, client_id):
+    def log_output(self, client_id, output_key: str, count: int = 1):
+        if count == 0:
+            return
         with self._lock:
             state = self._get_or_create_state(client_id)
-            state["sent"] += 1
+            if str(output_key) not in state["sent"]:
+                state["sent"][str(output_key)] = 0
+            state["sent"][str(output_key)] += count
             if state["leader_announced"]:
                 self._send_counter_update(client_id, state)
 
@@ -73,14 +77,17 @@ class ClusterCoordinator:
             return
             
         total_processed = state["processed"]
-        total_sent = state["sent"]
+        total_sent = dict(state["sent"])
         
-        for node_id, (proc, sent) in state["reports"].items():
+        for node_id, (proc, sent_dict) in state["reports"].items():
             total_processed += proc
-            total_sent += sent
+            for k, v in sent_dict.items():
+                if str(k) not in total_sent:
+                    total_sent[str(k)] = 0
+                total_sent[str(k)] += v
             
         if total_processed >= state["expected_count"]:
-            logging.info(f"[{self.config.cluster_name}_{self.config.node_id}] Phase complete for client {client_id}. Total processed: {total_processed}, Sent: {total_sent}")
+            logging.info(f"[{self.config.cluster_name}_{self.config.node_id}] Phase complete for client {client_id}. Total processed: {total_processed}, Sent to queues: {total_sent}")
             msg = PhaseComplete(client_id)
             env = ControlEnvelope(ControlMsgType.PHASE_COMPLETE, msg.serialize())
             self._send_control_msg(env)

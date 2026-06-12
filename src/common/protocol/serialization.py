@@ -98,3 +98,20 @@ def deserialize_list(b, item_deserializer):
     return [item_deserializer(reader) for i in range(length)]
 
 
+
+def serialize_dict_str_int(d: dict) -> bytes:
+    items = []
+    for k, v in d.items():
+        items.append(serialize_string(str(k)) + serialize_uint32(v))
+    return serialize_uint32(len(items)) + b"".join(items)
+
+def _read_dict_str_int(reader: MemoryReader) -> dict:
+    length = reader.read_uint32()
+    result = {}
+    for _ in range(length):
+        k = reader.read_string()
+        v = reader.read_uint32()
+        result[k] = v
+    return result
+
+MemoryReader.read_dict_str_int = _read_dict_str_int

@@ -24,14 +24,14 @@ class CounterReport:
     client_id: int
     node_id: int
     processed: int
-    sent: int
+    sent: dict
 
     def serialize(self) -> bytes:
         return b"".join([
             serialization.serialize_uint32(self.client_id),
             serialization.serialize_uint32(self.node_id),
             serialization.serialize_uint32(self.processed),
-            serialization.serialize_uint32(self.sent),
+            serialization.serialize_dict_str_int(self.sent),
         ])
 
     @classmethod
@@ -40,7 +40,7 @@ class CounterReport:
             client_id=reader.read_uint32(),
             node_id=reader.read_uint32(),
             processed=reader.read_uint32(),
-            sent=reader.read_uint32(),
+            sent=reader.read_dict_str_int(),
         )
 
 @dataclass

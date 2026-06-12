@@ -128,18 +128,23 @@ class MapperAndDistributor:
             logging.error(f"Error processing message: {e}")
             nack()
 
-    def _on_phase_complete(self, client_id, total_sent):
+    def _on_phase_complete(self, client_id, total_sent: dict):
         # --- NUEVA ARQUITECTURA: OPCIÓN A (El emisor elige un solo líder) ---
         logging.info(f"Phase complete for client {client_id}. Emitting EOF to partition 0 only.")
-        msg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS, b"").serialize()
+        
+        from common.protocol.serialization import serialize_uint32
         
         # Mandamos el EOF a la partición 0 del AVERAGE
-        self.middleware.send_raw(msg, output_key=PAYMENT_FORMAT_AVG_PREFIX, 
-                                 routing_key=f"{PAYMENT_FORMAT_AVG_PREFIX}_0")
+        count_avg = total_sent.get(PAYMENT_FORMAT_AVG_PREFIX, 0)
+        msg_avg = MsgEnvelope(client_id, MsgType.END_OF_RECORDS, serialize_uint32(count_avg)).serialize()
+        self.middleware.send_raw(msg_avg, output_key=PAYMENT_FORMAT_AVG_PREFIX, 
+                                 routing_key=f"{PAYMENT_FORMAT_AVG_PREFIX}_0", count=0)
                                  
         # Mandamos el EOF a la partición 0 del FILTER
-        self.middleware.send_raw(msg, output_key=AMOUNT_FILTER_PREFIX, 
-                                 routing_key=f"{AMOUNT_FILTER_PREFIX}_0")
+        count_filter = total_sent.get(AMOUNT_FILTER_PREFIX, 0)
+        msg_filter = MsgEnvelope(client_id, MsgType.END_OF_RECORDS, serialize_uint32(count_filter)).serialize()
+        self.middleware.send_raw(msg_filter, output_key=AMOUNT_FILTER_PREFIX, 
+                                 routing_key=f"{AMOUNT_FILTER_PREFIX}_0", count=0)
 
     def start(self):
         # --- NUEVA ARQUITECTURA: Flujo principal ---

@@ -75,7 +75,7 @@ class Distributor:
         message = protocol.MsgEnvelope(client_id, msg_cls.MESSAGE_TYPE, msg_cls.serialize_batch(batch))
         
         # --- NUEVA ARQUITECTURA ---
-        self.middleware.send_raw(message.serialize(), output_key=query_num)
+        self.middleware.send_raw(message.serialize(), output_key=query_num, count=len(batch))
         
         """
         CÓDIGO VIEJO:
@@ -140,12 +140,15 @@ class Distributor:
             logging.error(f"Error processing message: {e}")
             nack()
 
-    def _on_phase_complete(self, client_id, total_sent):
+    def _on_phase_complete(self, client_id, total_sent: dict):
         # --- NUEVA ARQUITECTURA: Emisión de EOF delegada ---
         logging.info(f"Phase complete for client {client_id}. Emitting EOF to 5 queries.")
-        eof_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.END_OF_RECORDS, b"")
         for i in range(1, 6):
-            self.middleware.send_raw(eof_msg.serialize(), output_key=i)
+            count_for_q = total_sent.get(str(i), 0)
+            from common.protocol.serialization import serialize_uint32
+            eof_payload = serialize_uint32(count_for_q)
+            eof_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.END_OF_RECORDS, eof_payload)
+            self.middleware.send_raw(eof_msg.serialize(), output_key=i, count=0)
 
     def start(self):
         # --- NUEVA ARQUITECTURA: Sin multithreading explícito ---
