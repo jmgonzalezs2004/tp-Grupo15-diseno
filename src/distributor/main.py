@@ -1,12 +1,10 @@
 from dataclasses import dataclass
 import os
 import logging
-import queue
 import signal
-import threading
 
-from common import middleware
-from common.middleware.middleware import MessageMiddlewareCloseError
+from common.middleware.cluster_config import ClusterConfig
+from common.middleware.cluster_middleware import ClusterMiddleware
 import common.protocol.internal as protocol
 from common.protocol.internal_messages import Q1Transaction, Q2Transaction, Q3Transaction, Q4Transaction2Acc, Q5Transaction, SerializableMessage, Transaction
 from criteria.criteria import build_criteria_for_query
@@ -23,25 +21,39 @@ Q4_QUEUE = os.environ["Q4_QUEUE"]
 Q5_QUEUE = os.environ["Q5_QUEUE"]
 Q_COUNT = 5
 
-@dataclass
-class OutboundMessage:
-    q_num : int
-    msg: protocol.MsgEnvelope
-
 class Distributor:
     def __init__(self):
-        self.input_exchange = middleware.MessageMiddlewareExchangeRabbitMQ(
-            MOM_HOST, DISTRIBUTOR_PREFIX, [f"{DISTRIBUTOR_PREFIX}_{ID}"]
-        )
-        self._control_exchange_sender = middleware.MessageMiddlewareExchangeRabbitMQ(
-            MOM_HOST, CONTROL_EXCHANGE, [DISTRIBUTOR_PREFIX]
+        config = ClusterConfig(
+            node_id=ID,
+            cluster_name=DISTRIBUTOR_PREFIX,
+            cluster_size=DISTRIBUTOR_AMOUNT
         )
         
-        self._running = True
+        # --- NUEVA ARQUITECTURA: ClusterMiddleware maneja TODO ---
+        self.middleware = ClusterMiddleware(
+            cluster_config=config,
+            host=MOM_HOST,
+            input_exchange=(DISTRIBUTOR_PREFIX, [f"{DISTRIBUTOR_PREFIX}_{ID}"]),
+            output_queues={
+                1: Q1_QUEUE,
+                2: Q2_QUEUE,
+                3: Q3_QUEUE,
+                4: Q4_QUEUE,
+                5: Q5_QUEUE
+            }
+        )
+        self.middleware.on_phase_complete = self._on_phase_complete
+        
+        """
+        CÓDIGO VIEJO:
+        self.input_exchange = middleware.MessageMiddlewareExchangeRabbitMQ(...)
+        self._control_exchange_sender = middleware.MessageMiddlewareExchangeRabbitMQ(...)
         self._msg_outbound_queue: queue.Queue[OutboundMessage] = queue.Queue()
         self.eofs_by_client: dict[int, int] = {}
         self.eofs_by_client_lock = threading.Lock()
         self._lock_processing_message = threading.Lock()
+        """
+
         try:
             self.q1_criteria = build_criteria_for_query(1)
             self.q2_criteria = build_criteria_for_query(2)
@@ -52,21 +64,29 @@ class Distributor:
             self.stop()
             raise
     
+    """
+    CÓDIGO VIEJO:
     def _is_leader(self):
-        # TODO Implement leader election, or improve our queues
         return ID == 0
+    """
 
     def _distribute_tran_batch(self, client_id, batch: list[SerializableMessage], query_num: int):
-        # Assumed batch not empty and every message inside the batch are the same type
         msg_cls = type(batch[0])
         message = protocol.MsgEnvelope(client_id, msg_cls.MESSAGE_TYPE, msg_cls.serialize_batch(batch))
+        
+        # --- NUEVA ARQUITECTURA ---
+        self.middleware.send_raw(message.serialize(), output_key=query_num)
+        
+        """
+        CÓDIGO VIEJO:
         self._msg_outbound_queue.put(OutboundMessage(query_num, message))
+        """
 
+    """
+    CÓDIGO VIEJO:
     def _distribute_eof(self, client_id):
-        logging.info(f"Sending EOF for client {client_id}")
-        message = protocol.MsgEnvelope(client_id, protocol.MsgType.END_OF_RECORDS, b"")
-        for i in range(5):
-            self._msg_outbound_queue.put(OutboundMessage(i+1, message))
+        ...
+    """
 
     def _process_tran(self, transaction: Transaction, dst_q_lists: list[list]) -> bool:
         if self.q1_criteria.check(transaction):
@@ -97,113 +117,59 @@ class Distributor:
                 logging.debug(f"Sending transactions to query {q_num} for client {client_id}")
                 self._distribute_tran_batch(client_id, dst_q_lists[q_idx], q_num)
 
-    def _evaluate_eofs(self, client_id):
-        # Called from control_consumer_thread and main thread
-        with self.eofs_by_client_lock:
-            self.eofs_by_client[client_id] = self.eofs_by_client.get(client_id, 0) + 1
-            if self.eofs_by_client[client_id] >= DISTRIBUTOR_AMOUNT:
-                self._distribute_eof(client_id)
-                del self.eofs_by_client[client_id]
-    
-    def _process_eof(self, client_id, message):
-        logging.info(f"Received EOF for client {client_id}")
-        if self._is_leader():
-            self._evaluate_eofs(client_id)
-        else:
-            self._msg_outbound_queue.join()
-            logging.info(f"Sending EOF NOTIFY message for client {client_id}")
-            msg = protocol.MsgEnvelope(client_id, protocol.MsgType.END_OF_RECORDS_NOTIFY, b"").serialize()
-            self._control_exchange_sender.send(msg)
+    """
+    CÓDIGO VIEJO (Lógica de Coordinación manual eliminada):
+    def _evaluate_eofs(self, client_id): ...
+    def _process_eof(self, client_id, message): ...
+    def _process_eof_notif(self, client_id): ...
+    def _process_control_message(self, message, ack, nack): ...
+    def _control_consumer_thread(self): ...
+    def _data_output_sender_thread(self): ...
+    """
 
     def process_messsage(self, message, ack, nack):
-        with self._lock_processing_message:
+        try:
             envelope = protocol.MsgEnvelope.deserialize(message)
             if envelope.msg_type == protocol.MsgType.TRAN_RECORD:
                 tran_batch = Transaction.deserialize_batch(envelope.raw_data)
                 self._process_tran_batch(envelope.client_id, tran_batch)
-            elif envelope.msg_type == protocol.MsgType.END_OF_RECORDS:
-                self._process_eof(envelope.client_id, message)
             else:
                 raise RuntimeError(f"msg_type {envelope.msg_type} not supported")
             ack()
+        except Exception as e:
+            logging.error(f"Error processing message: {e}")
+            nack()
 
-    def _process_eof_notif(self, client_id):
-        logging.info(f"Process EOF notification for client {client_id}")
-        assert self._is_leader()
-        self._evaluate_eofs(client_id)
-
-    def _process_control_message(self, message, ack, nack):
-        with self._lock_processing_message:
-            try:
-                msg = protocol.MsgEnvelope.deserialize(message)
-                if msg.msg_type == protocol.MsgType.END_OF_RECORDS_NOTIFY:
-                    self._process_eof_notif(msg.client_id)
-                else:
-                    logging.error(f"Unknown control message type: {msg.msg_type}")
-                ack()
-            except Exception as e:
-                if self._running:
-                    logging.error(f"Unexpected error in control message processing: {e}")
-                    nack()
-                    self._control_exchange_consumer.stop_consuming()
-
-    def _control_consumer_thread(self):
-        """
-        Thread for consuming messages from the control exchange.
-        """
-        self._control_exchange_consumer = middleware.MessageMiddlewareExchangeRabbitMQ(
-            MOM_HOST, CONTROL_EXCHANGE, [DISTRIBUTOR_PREFIX]
-        )
-        self._control_exchange_consumer.start_consuming(self._process_control_message)
-        self._control_exchange_consumer.close()
-
-    def _data_output_sender_thread(self):
-        """
-        Thread for sending messages to the data output queues.
-        """
-        self.q_out_queues = [
-            middleware.MessageMiddlewareQueueRabbitMQ(MOM_HOST, Q1_QUEUE),
-            middleware.MessageMiddlewareQueueRabbitMQ(MOM_HOST, Q2_QUEUE),
-            middleware.MessageMiddlewareQueueRabbitMQ(MOM_HOST, Q3_QUEUE),
-            middleware.MessageMiddlewareQueueRabbitMQ(MOM_HOST, Q4_QUEUE),
-            middleware.MessageMiddlewareQueueRabbitMQ(MOM_HOST, Q5_QUEUE),
-        ]
-
-        while self._running or not self._msg_outbound_queue.empty():
-            item = self._msg_outbound_queue.get()
-            try:
-                self.q_out_queues[item.q_num-1].send(item.msg.serialize())
-            except Exception as e:
-                logging.error(f"Error sending message to data output queue: {e}")
-                break
-            finally:
-                self._msg_outbound_queue.task_done()
-        
-        for queue in self.q_out_queues:
-            try:
-                queue.close()
-            except MessageMiddlewareCloseError as e:
-                logging.error(f"Error closing RabbitMQ connections: {e}")
+    def _on_phase_complete(self, client_id, total_sent):
+        # --- NUEVA ARQUITECTURA: Emisión de EOF delegada ---
+        logging.info(f"Phase complete for client {client_id}. Emitting EOF to 5 queries.")
+        eof_msg = protocol.MsgEnvelope(client_id, protocol.MsgType.END_OF_RECORDS, b"")
+        for i in range(1, 6):
+            self.middleware.send_raw(eof_msg.serialize(), output_key=i)
 
     def start(self):
+        # --- NUEVA ARQUITECTURA: Sin multithreading explícito ---
+        self.middleware.start_consuming(self.process_messsage)
+
+        """
+        CÓDIGO VIEJO:
         if self._is_leader():
             control_consumer_thread = threading.Thread(target=self._control_consumer_thread)
             control_consumer_thread.start()
         data_output_sender_thread = threading.Thread(target=self._data_output_sender_thread)
         data_output_sender_thread.start()
         self.input_exchange.start_consuming(self.process_messsage)
-        #control_consumer_thread.join()
         self.stop()
+        """
 
     def stop(self):
         logging.info("Stopping Distributor...")
-        self.input_exchange.close()
-        self._running = False
+        self.middleware.close()
 
 def handle_sigterm(distributor: Distributor):
     logging.info("SIGTERM received")
     try:
-        distributor.input_exchange.stop_consuming()
+        distributor.middleware.stop_consuming()
     except Exception as e:
         logging.error(e)
 
@@ -219,7 +185,6 @@ def main():
     distributor.start()
 
     return 0
-
 
 if __name__ == "__main__":
     main()
