@@ -17,7 +17,7 @@ class ClusterCoordinator:
         self.eof_callback = None
         self._running = True
         
-        self.control_thread = threading.Thread(target=self._run_control_consumer, daemon=True)
+        self.control_thread = threading.Thread(target=self._run_control_consumer)
         self.control_thread.start()
 
     def set_eof_callback(self, callback):
@@ -30,7 +30,8 @@ class ClusterCoordinator:
                 "sent": 0,
                 "is_leader": False,
                 "expected_count": 0,
-                "reports": {}
+                "reports": {},
+                "leader_announced": False
             }
         return self.client_states[client_id]
 
@@ -38,19 +39,22 @@ class ClusterCoordinator:
         with self._lock:
             state = self._get_or_create_state(client_id)
             state["processed"] += 1
-            self._send_counter_update(client_id, state)
+            if state["leader_announced"]:
+                self._send_counter_update(client_id, state)
 
     def log_output(self, client_id):
         with self._lock:
             state = self._get_or_create_state(client_id)
             state["sent"] += 1
-            self._send_counter_update(client_id, state)
+            if state["leader_announced"]:
+                self._send_counter_update(client_id, state)
 
     def on_eof(self, client_id, expected_count):
         logging.info(f"[{self.config.cluster_name}_{self.config.node_id}] Received EOF for client {client_id}. Expected: {expected_count}")
         with self._lock:
             state = self._get_or_create_state(client_id)
             state["is_leader"] = True
+            state["leader_announced"] = True
             state["expected_count"] = expected_count
             
             msg = LeaderAnnounce(client_id)
@@ -113,6 +117,7 @@ class ClusterCoordinator:
                     if env.msg_type == ControlMsgType.LEADER_ANNOUNCE:
                         msg = LeaderAnnounce.deserialize_from(MemoryReader(env.raw_data))
                         state = self._get_or_create_state(msg.client_id)
+                        state["leader_announced"] = True
                         self._send_counter_update(msg.client_id, state)
                         
                     elif env.msg_type == ControlMsgType.COUNTER_REPORT:

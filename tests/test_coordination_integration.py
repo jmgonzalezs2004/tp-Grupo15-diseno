@@ -27,7 +27,9 @@ class MockChannel:
 
     def exchange_declare(self, exchange, exchange_type): pass
     def queue_bind(self, exchange, queue, routing_key):
-        GLOBAL_EXCHANGES[routing_key] = queue
+        if routing_key not in GLOBAL_EXCHANGES:
+            GLOBAL_EXCHANGES[routing_key] = []
+        GLOBAL_EXCHANGES[routing_key].append(queue)
     def basic_qos(self, prefetch_count): pass
     
     def basic_consume(self, queue, on_message_callback, auto_ack):
@@ -43,10 +45,12 @@ class MockChannel:
         m.delivery_tag = 1
         
         # Enrutamiento basado en queue_bind
-        queue_to_deliver = GLOBAL_EXCHANGES.get(routing_key, routing_key)
+        queues_to_deliver = GLOBAL_EXCHANGES.get(routing_key, [routing_key])
+        if type(queues_to_deliver) is not list:
+            queues_to_deliver = [queues_to_deliver]
         
         for q, cb in GLOBAL_CALLBACKS.items():
-            if q == queue_to_deliver or (routing_key != '' and routing_key in q) or (exchange != '' and exchange in q):
+            if q in queues_to_deliver or (routing_key != '' and routing_key in q) or (exchange != '' and exchange in q):
                 # Disparamos el callback asincrónicamente
                 threading.Thread(target=cb, args=(self, m, None, body)).start()
 
