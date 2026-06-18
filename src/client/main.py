@@ -186,16 +186,16 @@ class Client:
         self.output_files.clear()
         self.csv_writers.clear()
     
-    def process_q1_tran(self, tran):
-        logging.debug("Receiving Q1 transaction")
-        
-        from_bank_id, from_account, to_bank_id, to_account, amount = tran
-        from_account_hex = format(from_account, "X")
-        to_account_hex = format(to_account, "X")
-        output_row = [from_bank_id, from_account_hex, to_bank_id, to_account_hex, amount]
-        
-        csv_writer = self.csv_writers[0]
-        csv_writer.writerow(output_row)
+    def process_q1_tran_batch(self, batch):
+        logging.debug("Receiving Q1 transaction batch")
+        for tran in batch:
+            from_bank_id, from_account, to_bank_id, to_account, amount = tran
+            from_account_hex = format(from_account, "X")
+            to_account_hex = format(to_account, "X")
+            output_row = [from_bank_id, from_account_hex, to_bank_id, to_account_hex, amount]
+            
+            csv_writer = self.csv_writers[0]
+            csv_writer.writerow(output_row)
 
     def process_q1_end(self):
         logging.info("Receiving Q1 end")
@@ -257,7 +257,7 @@ class Client:
             self.enqueue_message(protocol.external.MsgType.ACK)
 
             if msg_type == protocol.external.MsgType.Q1_TRAN:
-                self.process_q1_tran(content)
+                self.process_q1_tran_batch(content)
             elif msg_type == protocol.external.MsgType.Q1_END:
                 self.process_q1_end()
             elif msg_type == protocol.external.MsgType.Q2_RESULT:

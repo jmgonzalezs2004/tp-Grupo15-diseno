@@ -5,7 +5,7 @@ import signal
 from common.middleware.middleware import MessageMiddlewareCloseError
 from common.middleware.middleware_rabbitmq import MessageMiddlewareExchangeRabbitMQ, MessageMiddlewareQueueRabbitMQ
 from common.protocol.internal import MsgType, MsgEnvelope
-from common.protocol.internal_messages import Q4Transaction2Acc, Q4Transaction3Acc
+from common.protocol.internal_messages import Account, Q4Transaction2Acc, Q4Transaction3Acc
 
 
 ID = int(os.environ["ID"])
@@ -25,7 +25,8 @@ class ThreeChain:
             MOM_HOST, OUTPUT_QUEUE
         )
 
-        self._outgoing_tran = {} # Dict[client_id, Dict[source_acc, set(dest_acc))]]
+        # Dict[client_id, Dict[source_acc, set(dest_acc))]]
+        self._outgoing_tran: dict[int, dict[Account, set[Account]]] = {}
         self._eof_received = {} # Dict[client_id, int]
 
         self._running = True
@@ -72,15 +73,26 @@ class ThreeChain:
             return
         
         logging.info(f"All EOF messages received for client. Sending derived 3-account transactions")
-        for source_acc, mid_acc_set in self._outgoing_tran.get(client_id, {}).items():
+        ACC_BATCH_SIZE = 220 # 36 bytes per record. Payload = 7920 B
+        current_batch = []
+        graph = self._outgoing_tran.get(client_id, {})
+        for source_acc, mid_acc_set in graph.items():
             for mid_acc in mid_acc_set:
-                if mid_acc not in self._outgoing_tran.get(client_id, {}):
+                dests = graph.get(mid_acc)
+                if not dests:
                     continue
-                for dest_acc in self._outgoing_tran[client_id][mid_acc]:
-                    transaction_3acc = Q4Transaction3Acc(source_acc, mid_acc, dest_acc)
-                    msg = MsgEnvelope(client_id, MsgType.Q4_TRAN_3ACC, transaction_3acc.serialize()).serialize()
-                    self._output_queue.send(msg)
+                for dest_acc in dests:
+                    current_batch.append(Q4Transaction3Acc(source_acc, mid_acc, dest_acc))
+                    if len(current_batch) >= ACC_BATCH_SIZE:
+                        msg = MsgEnvelope(client_id, MsgType.Q4_TRAN_3ACC, Q4Transaction3Acc.serialize_batch(current_batch))
+                        self._output_queue.send(msg.serialize())
+                        current_batch.clear()
         
+        if len(current_batch) > 0:
+            msg = MsgEnvelope(client_id, MsgType.Q4_TRAN_3ACC, Q4Transaction3Acc.serialize_batch(current_batch))
+            self._output_queue.send(msg.serialize())
+            current_batch.clear()
+
         logging.info(f"Sending END_OF_RECORDS message for client {client_id}")
         self._output_queue.send(MsgEnvelope(client_id, MsgType.END_OF_RECORDS, b"").serialize())
 

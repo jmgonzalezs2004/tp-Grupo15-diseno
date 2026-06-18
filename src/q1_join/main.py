@@ -12,6 +12,7 @@ INPUT_QUEUE = os.environ["INPUT_QUEUE"]
 OUTPUT_QUEUE = os.environ["OUTPUT_QUEUE"]
 MOM_HOST = os.environ["MOM_HOST"]
 
+TRAN_BATCH_SIZE = 250 # 32 bytes per record. Payload = 8000 B
 
 class Q4Join:
     def __init__(self):
@@ -23,6 +24,7 @@ class Q4Join:
         )
 
         self._running = True
+        self._batch_by_client: dict[int, list] = {}
 
         signal.signal(signal.SIGTERM, self.handle_sigterm)
 
@@ -34,18 +36,20 @@ class Q4Join:
         except Exception as e:
             logging.error(f"Error stopping consuming messages: {e}")
 
-    def _process_tran(self, client_id, tran: Q1Transaction):
+    def _process_tran_batch(self, client_id, batch: list[Q1Transaction]):
         """
         Process transaction data for a client. As the transaction was already processed 
         we just need to forward it to the output queue.
         """
-        out_msg = MsgEnvelope(client_id, MsgType.Q1_TRAN, tran.serialize())
-        self._output_queue.send(out_msg.serialize())
-
-    def _process_tran_batch(self, client_id, batch: list[Q1Transaction]):
         logging.debug(f"Received transaction batch for client {client_id}")
-        for tran in batch:
-            self._process_tran(client_id, tran)
+        client_batch = self._batch_by_client.setdefault(client_id, [])
+        client_batch.extend(batch)
+
+        if len(client_batch) >= TRAN_BATCH_SIZE:
+            out_batch = client_batch[:TRAN_BATCH_SIZE]
+            del client_batch[:TRAN_BATCH_SIZE]
+            out_msg = MsgEnvelope(client_id, MsgType.Q1_TRAN, Q1Transaction.serialize_batch(out_batch))
+            self._output_queue.send(out_msg.serialize())
 
     def _process_eof(self, client_id):
         """
@@ -53,6 +57,14 @@ class Q4Join:
         to indicate that all data for the client has been processed.
         """
         logging.info(f"Received EOF for client {client_id}")
+        client_batch = self._batch_by_client.setdefault(client_id, [])
+        while client_batch:
+            out_batch = client_batch[:TRAN_BATCH_SIZE]
+            del client_batch[:TRAN_BATCH_SIZE]
+            out_msg = MsgEnvelope(client_id, MsgType.Q1_TRAN, Q1Transaction.serialize_batch(out_batch))
+            self._output_queue.send(out_msg.serialize())
+        self._batch_by_client.pop(client_id, None)
+        
         logging.info(f"Sending Q1_END message for client {client_id}")
         self._output_queue.send(MsgEnvelope(client_id, MsgType.Q1_END, b"").serialize())
 

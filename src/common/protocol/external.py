@@ -90,12 +90,19 @@ def _recv_tran_record(socket: socket):
     )
 
 def _recv_q1_tran(socket: socket):
-    from_bank_id = _recv_uint32(socket)
-    from_account = _recv_uint64(socket)
-    to_bank_id = _recv_uint32(socket)
-    to_account = _recv_uint64(socket)
-    amount = _recv_float(socket)
-    return (from_bank_id, from_account, to_bank_id, to_account, amount)
+    def item_deserializer(reader: serialization.MemoryReader):
+        from_bank_id = reader.read_uint32()
+        from_account = reader.read_uint64()
+        to_bank_id = reader.read_uint32()
+        to_account = reader.read_uint64()
+        amount = reader.read_float()
+        return (from_bank_id, from_account, to_bank_id, to_account, amount)
+    
+    payload_len = _recv_uint32(socket)
+    return serialization.deserialize_list(
+        _recv_sized(socket, payload_len),
+        item_deserializer
+    )
 
 def _recv_q2_result(socket: socket):
     from_bank_id = _recv_uint32(socket)

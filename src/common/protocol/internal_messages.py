@@ -55,7 +55,7 @@ class Transaction(SerializableMessage):
     amount: float
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             serialization.serialize_uint32(self.timestamp),
             serialization.serialize_uint32(self.from_bank_id),
             serialization.serialize_uint64(self.from_account),
@@ -64,7 +64,7 @@ class Transaction(SerializableMessage):
             serialization.serialize_uint32(self.currency_id),
             serialization.serialize_uint32(self.payment_format_id),
             serialization.serialize_float(self.amount),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -86,10 +86,10 @@ class BankRecord(SerializableMessage):
     bank_name: str
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             serialization.serialize_uint32(self.bank_id),
             serialization.serialize_string(self.bank_name),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -120,13 +120,13 @@ class Q1Transaction(SerializableMessage):
                              src_transaction.amount)
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             serialization.serialize_uint32(self.from_bank_id),
             serialization.serialize_uint64(self.from_account),
             serialization.serialize_uint32(self.to_bank_id),
             serialization.serialize_uint64(self.to_account),
             serialization.serialize_float(self.amount),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -156,11 +156,11 @@ class Q2Transaction(SerializableMessage):
                              src_transaction.amount)
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             serialization.serialize_uint32(self.from_bank_id),
             serialization.serialize_uint64(self.from_account),
             serialization.serialize_float(self.amount),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -184,11 +184,11 @@ class Q2BankMax(SerializableMessage):
                          src_transaction.amount)
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             serialization.serialize_uint32(self.from_bank_id),
             serialization.serialize_uint64(self.from_account),
             serialization.serialize_float(self.amount),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -207,12 +207,12 @@ class Q2Result(SerializableMessage):
     amount: float
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             serialization.serialize_uint32(self.from_bank_id),
             serialization.serialize_uint64(self.from_account),
             serialization.serialize_string(self.from_bank_name),
             serialization.serialize_float(self.amount),
-        ])
+        ))
     
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -244,10 +244,10 @@ class BankNameResponse(SerializableMessage):
     bank_name: str
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             serialization.serialize_uint32(self.bank_id),
             serialization.serialize_string(self.bank_name),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -278,13 +278,13 @@ class Q3Transaction(SerializableMessage):
                              src_transaction.amount)
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             serialization.serialize_uint32(self.timestamp),
             serialization.serialize_uint32(self.from_bank_id),
             serialization.serialize_uint64(self.from_account),
             serialization.serialize_uint32(self.payment_format_id),
             serialization.serialize_float(self.amount),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -303,10 +303,10 @@ class Q3TransactionPreceding(SerializableMessage):
     amount: float
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             serialization.serialize_uint32(self.payment_format_id),
             serialization.serialize_float(self.amount),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -324,12 +324,12 @@ class Q3TransactionSubsequent(SerializableMessage):
     amount: float
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             serialization.serialize_uint32(self.from_bank_id),
             serialization.serialize_uint64(self.from_account),
             serialization.serialize_uint32(self.payment_format_id),
             serialization.serialize_float(self.amount),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -347,10 +347,10 @@ class Q3Average(SerializableMessage):
     avg: float
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             serialization.serialize_uint32(self.payment_format_id),
             serialization.serialize_float(self.avg),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -368,12 +368,12 @@ class Q3ResultTransaction(SerializableMessage):
     amount: float
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             serialization.serialize_uint32(self.from_bank_id),
             serialization.serialize_uint64(self.from_account),
             serialization.serialize_uint32(self.payment_format_id),
             serialization.serialize_float(self.amount),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -429,10 +429,10 @@ class Q4Transaction2Acc(SerializableMessage):
         return Q4Transaction2Acc(from_acc, to_acc)
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             self.from_acc.serialize(),
             self.to_acc.serialize(),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -449,11 +449,11 @@ class Q4Transaction3Acc(SerializableMessage):
     to_acc: Account
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             self.from_acc.serialize(),
             self.mid_acc.serialize(),
             self.to_acc.serialize(),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -469,9 +469,9 @@ class Q4LaunderingAcc(SerializableMessage):
     acc: Account
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             self.acc.serialize(),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
@@ -497,11 +497,11 @@ class Q5Transaction(SerializableMessage):
                              src_transaction.amount)
 
     def serialize(self) -> bytes:
-        return b"".join([
+        return b"".join((
             serialization.serialize_uint32(self.timestamp),
             serialization.serialize_uint32(self.currency_id),
             serialization.serialize_float(self.amount),
-        ])
+        ))
 
     @classmethod
     def deserialize_from(cls, reader: MemoryReader):
