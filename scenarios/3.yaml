@@ -8,6 +8,7 @@ services:
     - distributor_0
     - distributor_1
     environment:
+    - ID=0
     - ACCOUNTS_FILE=/datasets/accounts_0.csv
     - INPUT_FILE=/datasets/input_0.csv
     - OUTPUT_FILE_PREFIX=/output/output_0_
@@ -26,6 +27,7 @@ services:
     - distributor_0
     - distributor_1
     environment:
+    - ID=1
     - ACCOUNTS_FILE=/datasets/accounts_0.csv
     - INPUT_FILE=/datasets/input_0.csv
     - OUTPUT_FILE_PREFIX=/output/output_1_

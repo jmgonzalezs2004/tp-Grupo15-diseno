@@ -15,11 +15,20 @@ logs:
 	docker compose -f docker-compose.yaml logs
 .PHONY: logs
 
+generate-expected:
+	mkdir -p ./expected_output
+	rm -rf ./expected_output/*
+	COMPOSE_HTTP_TIMEOUT=300 docker compose -f docker-compose.yaml up --build --remove-orphans -d
+	python3 -m tests.generate_expected
+	docker compose -f docker-compose.yaml stop -t 5
+	docker compose -f docker-compose.yaml down
+.PHONY: generate-expected
+
 test:
 	mkdir -p output
 	rm -rf ./output/*
 	COMPOSE_HTTP_TIMEOUT=300 docker compose -f docker-compose.yaml up --build --remove-orphans -d
-	python3 -m tests.main
+	python3 -m tests.compare_results
 	docker compose -f docker-compose.yaml stop -t 5
 	docker compose -f docker-compose.yaml down
 .PHONY: test

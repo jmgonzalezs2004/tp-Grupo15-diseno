@@ -2,7 +2,7 @@ import yaml
 import logging
 import subprocess
 
-from tests.query_results_verifier import QueryResultsVerifier
+from tests.utils.query_results_verifier import QueryResultsVerifier
 
 DOCKER_FILE_PATH = "./docker-compose.yaml"
 
@@ -39,14 +39,13 @@ def verify_client_output(client_service):
     client_name = client_service["container_name"]
     logging.info(client_name)
     environment = client_service["environment"]
-    accounts_file = "." + find_environment_variable(environment, "ACCOUNTS_FILE")
-    input_file = "." + find_environment_variable(environment, "INPUT_FILE")
+    client_id = find_environment_variable(environment, "ID")
     output_file_prefix = "." + find_environment_variable(environment, "OUTPUT_FILE_PREFIX")
 
-    if not accounts_file or not input_file or not output_file_prefix:
+    if not client_id or not output_file_prefix:
         raise ClientValidationError("Bad file environment variable config")
 
-    verifier = QueryResultsVerifier(accounts_file, input_file, output_file_prefix)
+    verifier = QueryResultsVerifier(client_id, output_file_prefix)
     err = verifier.verify_query_results()
     if err:
         raise ClientValidationError(f"Query results verification failed: {err}")

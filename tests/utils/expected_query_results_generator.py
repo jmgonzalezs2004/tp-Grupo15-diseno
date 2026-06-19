@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime, UTC
 from tests.utils.transactions_reader import TransactionsReader
-from tests.utils.query_result_output_reader import QueryResultOutputReader
 from tests.utils.usd_converter import USDConverter
 from tests.utils.accounts_reader import AccountsReader
 
@@ -9,57 +8,41 @@ from tests.utils.accounts_reader import AccountsReader
 QUERY_AMOUNT = 5
 
 
-class QueryResultsVerifier:
-    def __init__(self, accounts_file_name, input_file_name, output_file_prefix_name):
+class ExpectedQueryResultsGenerator:
+    def __init__(self, client_id, accounts_file_name, input_file_name):
+        self._client_id = client_id
         self._accounts_file_name = accounts_file_name
         self._input_file_name = input_file_name
-        self._output_file_prefix_name = output_file_prefix_name
         self._usd_converter = USDConverter()
         self._bank_names = {}
+        self._expected_output_file_headers = {
+            1: ["From Bank", "From Account", "To Bank", "To Account", "Amount"],
+            2: ["Bank ID", "Account", "Bank Name", "Amount"],
+            3: ["Bank", "Account", "Payment Format", "Amount"],
+            4: ["Bank", "Account"],
+            5: ["Count"]
+        }
 
-    def verify_query_results(self):
-        for q in range(1, QUERY_AMOUNT + 1):
-            logging.info(f"Verifying query {q} results...")
-            self._verify_q(q)
-
-    def _verify_q(self, query_number):
-        self._store_bank_names() 
-
-        build_input_query_results_method = getattr(self, f"_build_input_q{query_number}_results")
-        expected_query_results = build_input_query_results_method()
-
-        output_query_results = self._read_output_query_results(f"{self._output_file_prefix_name}{query_number}.csv", query_number)
-
-        if len(expected_query_results) != len(output_query_results):
-            raise Exception(f"Q{query_number}: Expected {len(expected_query_results)} results, but got {len(output_query_results)}")
-
-        output_query_results.sort()
-        if expected_query_results != output_query_results:
-            for i, (expected, actual) in enumerate(
-                zip(expected_query_results, output_query_results)
-            ):
-                if expected != actual:
-                    raise Exception(
-                        f"Q{query_number}: Difference at row {i}\n"
-                        f"Expected: {expected}\n"
-                        f"Actual:   {actual}"
-                    )
-
-    def _read_output_query_results(self, output_file, query_number):
-        q_result_output_reader = None
+    def generate_expected_query_results(self):
+        """
+        Generates sorted expected query results for all queries and stores them in output 
+        files with the format: 
+        ./expected_output/expected_output_{self._client_id}_{query_number}.csv
+        """
+        
         try:
-            q_result_output_reader = QueryResultOutputReader(output_file, query_number)
-            output_query_results = []
-            for output_item in iter(q_result_output_reader.next_output, None):
-                output_query_results.append(output_item)
-            return output_query_results
+            self._store_bank_names()
+            for query_number in range(1, QUERY_AMOUNT + 1):
+                logging.info(f"Generating expected query {query_number} results...")
+                _generate_query_result = getattr(self, f"_generate_q{query_number}_result")
+                expected_query_results = _generate_query_result()
+                self._store_expected_query_results(expected_query_results, query_number)
         except Exception as e:
-            raise Exception(f"Couldn't read output file '{output_file}' query result. " + str(e))
-        finally:
-            if q_result_output_reader:
-                q_result_output_reader.close()
+            return f"{str(e)}"
 
-    def _build_input_q1_results(self):
+        return None
+
+    def _generate_q1_result(self):
         tran_reader = None
         try:
             tran_reader = TransactionsReader(self._input_file_name)
@@ -92,7 +75,7 @@ class QueryResultsVerifier:
             if tran_reader:
                 tran_reader.close()
 
-    def _build_input_q2_results(self):
+    def _generate_q2_result(self):
         tran_reader = None
         try:
             tran_reader = TransactionsReader(self._input_file_name)
@@ -133,7 +116,7 @@ class QueryResultsVerifier:
             if tran_reader:
                 tran_reader.close()
 
-    def _build_input_q3_results(self):
+    def _generate_q3_result(self):
         tran_reader = None
         try:
             tran_reader = TransactionsReader(self._input_file_name)
@@ -192,7 +175,7 @@ class QueryResultsVerifier:
             if tran_reader:
                 tran_reader.close()
 
-    def _build_input_q4_results(self):
+    def _generate_q4_result(self):
         tran_reader = None
         try:
             tran_reader = TransactionsReader(self._input_file_name)
@@ -266,7 +249,7 @@ class QueryResultsVerifier:
             if tran_reader:
                 tran_reader.close()
 
-    def _build_input_q5_results(self):
+    def _generate_q5_result(self):
         tran_reader = None
         try:
             tran_reader = TransactionsReader(self._input_file_name)
@@ -313,3 +296,14 @@ class QueryResultsVerifier:
         finally:
             if accounts_reader:
                 accounts_reader.close()
+
+    def _store_expected_query_results(self, expected_query_results, query_number):
+        logging.info(f"Storing expected query {query_number} results...")
+        output_file_name = f"./expected_output/expected_{self._client_id}_{query_number}.csv"
+        try:
+            with open(output_file_name, "w") as output_file:
+                output_file.write(",".join(self._expected_output_file_headers.get(query_number, [])) + "\n")
+                for result in expected_query_results:
+                    output_file.write(",".join(map(str, result)) + "\n")
+        except Exception as e:
+            raise Exception(f"Couldn't store expected query {query_number} results. " + str(e))

@@ -30,7 +30,9 @@ Los datasets a utilizar se guardaron en la carpeta `./datasets`, y se utilizaron
 
 `make logs`: Sigue los logs de todos los contenedores en un solo flujo de salida.
 
-`make test`: Inicia los contenedores del sistema, espera a que los clientes finalicen, compara los resultados con una ejecución serial y detiene los contenederes.
+`make generate-expected`: Genera los archivos de resultados esperados a partir de una ejecución serial de las queries.
+
+`make test`: Inicia los contenedores del sistema, espera a que los clientes finalicen la ejecución de las queries, compara los resultados obtenidos con los resultados esperados y detiene los contenedores.
 
 `make switch`: Permite alternar rápidamente entre los archivos de docker compose de distintos escenarios. Estos son:  
 1. Un cliente, una sola réplica de cada elemento
