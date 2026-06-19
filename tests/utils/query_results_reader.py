@@ -1,10 +1,10 @@
 import csv
 
 
-class QueryResultOutputReader:
-    def __init__(self, output_file, query_number):
+class QueryResultsReader:
+    def __init__(self, file, query_number):
         self._query_number = query_number
-        self._csv_file = open(output_file, newline="\n")
+        self._csv_file = open(file, newline="\n")
         self._csv_reader = csv.reader(self._csv_file, delimiter=",", quotechar='"')
         next(self._csv_reader)  # Skip header row
 

@@ -25,7 +25,7 @@ def generate_expected_query_results(client_service):
     accounts_file = "." + find_environment_variable(environment, "ACCOUNTS_FILE")
     input_file = "." + find_environment_variable(environment, "INPUT_FILE")
 
-    if not accounts_file or not input_file:
+    if not client_id or not accounts_file or not input_file:
         raise ExpectedQueryResultGenerationError("Bad file environment variable config")
 
     generator = ExpectedQueryResultsGenerator(client_id, accounts_file, input_file)
