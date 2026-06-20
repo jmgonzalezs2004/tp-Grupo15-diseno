@@ -19,8 +19,6 @@ generate-expected:
 	mkdir -p ./expected_output
 	rm -rf ./expected_output/*
 	python3 -m tests.generate_expected
-	docker compose -f docker-compose.yaml stop -t 5
-	docker compose -f docker-compose.yaml down
 .PHONY: generate-expected
 
 test:
