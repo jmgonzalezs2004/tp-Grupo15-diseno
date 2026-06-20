@@ -1,8 +1,11 @@
+import os
 import yaml
 import logging
 import subprocess
+import threading
 
 from tests.utils.query_results_verifier import QueryResultsVerifier
+from tests.utils.chaos_monkey import ChaosMonkey
 
 DOCKER_FILE_PATH = "./docker-compose.yaml"
 
@@ -67,9 +70,23 @@ def main():
                     services.keys(),
                 )
             )
-            
+
+            chaos_monkey_enabled = os.getenv("CHAOS_MONKEY") == "1"
+            thread = None
+            chaos_monkey = None
+            if chaos_monkey_enabled:
+                logging.info("Chaos Monkey mode enabled.")
+                chaos_monkey = ChaosMonkey(services)
+                thread = threading.Thread(target=chaos_monkey.run)
+                thread.start()
+
             logging.info("Awaiting client containers to exit...")
             await_client_containers(client_services_name)
+
+            if chaos_monkey_enabled:
+                logging.info("Stopping Chaos Monkey...")
+                chaos_monkey.stop()
+                thread.join()
 
             logging.info("Validating clients...")
             for client_service_name in client_services_name:

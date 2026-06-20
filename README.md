@@ -32,7 +32,8 @@ Los datasets a utilizar se guardaron en la carpeta `./datasets`, y se utilizaron
 
 `make generate-expected`: Genera los archivos de resultados esperados a partir de una ejecución serial de las queries.
 
-`make test`: Inicia los contenedores del sistema, espera a que los clientes finalicen la ejecución de las queries, compara los resultados obtenidos con los resultados esperados y detiene los contenedores.
+`make test`: Inicia los contenedores del sistema, espera a que los clientes finalicen la ejecución de las queries, compara los resultados obtenidos con los resultados esperados y detiene los contenedores.  
+Si al comando le pasamos la flag `CHAOS_MONKEY=1`, entonces se activará el modo Chaos Monkey, que cada 20 segundos tira un nodo del sistema al azar (esto incluye todos los nodos menos `client`, `gateway` y `rabbitmq`).
 
 `make switch`: Permite alternar rápidamente entre los archivos de docker compose de distintos escenarios. Estos son:  
 1. Un cliente, una sola réplica de cada elemento
