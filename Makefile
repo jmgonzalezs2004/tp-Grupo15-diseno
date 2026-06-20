@@ -18,7 +18,6 @@ logs:
 generate-expected:
 	mkdir -p ./expected_output
 	rm -rf ./expected_output/*
-	COMPOSE_HTTP_TIMEOUT=300 docker compose -f docker-compose.yaml up --build --remove-orphans -d
 	python3 -m tests.generate_expected
 	docker compose -f docker-compose.yaml stop -t 5
 	docker compose -f docker-compose.yaml down
