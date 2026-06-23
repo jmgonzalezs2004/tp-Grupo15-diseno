@@ -28,8 +28,8 @@ class PaymentFormatAvg:
             ) for i in range(AMOUNT_FILTER_AMOUNT)
         ]
 
-        self._sum_count_per_payment_format = {} # Dict[client_id, Dict[payment_format_id, tuple(sum, count)]]]
-        self._eof_received = {} # Dict[client_id, int]
+        self._sum_count_per_payment_format: dict[int, dict] = {} # Dict[client_id, Dict[payment_format_id, tuple(sum, count)]]]
+        self._eof_received: dict[int, int] = {} # Dict[client_id, int]
 
         self._running = True
 
