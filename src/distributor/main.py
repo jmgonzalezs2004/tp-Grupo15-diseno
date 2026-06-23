@@ -64,8 +64,12 @@ class Distributor:
 
     def _distribute_eof(self, client_id):
         logging.info(f"Sending EOF for client {client_id}")
+        # Q1: Short path, no intermediate steps
+        q1_eof = protocol.MsgEnvelope(client_id, protocol.MsgType.Q1_END, b"")
+        self._msg_outbound_queue.put(OutboundMessage(1, q1_eof))
+        # Q2 to Q5: Standard path, send to other instances
         message = protocol.MsgEnvelope(client_id, protocol.MsgType.END_OF_RECORDS, b"")
-        for i in range(5):
+        for i in range(1,5):
             self._msg_outbound_queue.put(OutboundMessage(i+1, message))
 
     def _process_tran(self, transaction: Transaction, dst_q_lists: list[list]) -> bool:
